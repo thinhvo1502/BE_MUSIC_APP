@@ -108,15 +108,32 @@ exports.addSongToPlaylist = async (req, res) => {
 
 
 exports.removeSongFromPlaylist = async (req, res) => {
-  const { songId } = req.body;
-  const playlist = await Playlist.findById(req.params.id);
-  
-  if (!playlist) {
-    return res.status(404).json({ message: "Playlist không tồn tại" });
-  }
+  try {
+    const { id } = req.params;
+    const { songId } = req.body;
 
-  playlist.songs = playlist.songs.filter(song => song.toString() !== songId);
-  await playlist.save();
-  
-  res.json(await playlist.populate('songs'));
+    const playlist = await Playlist.findById(id);
+
+    if ( !playlist ) {
+        return res.status(404).json({ message: "Playlist không tồn tại" });
+    }
+
+    playlist.songs = playlist.songs.filter(s => s?._id);
+    // check song in playlist?
+    const index = (playlist.songs || []).findIndex(
+        (s) => s._id.toString() === songId.toString()
+    );
+
+    if (index == -1) {
+        return res.status(404).json({ message: "Bài hát không tồn tại trong Playlist" });
+    }
+
+    playlist.songs.splice(index, 1);
+    await playlist.save();
+
+    res.json({ message: "Đã xóa bài hát khỏi Playlist", playlist});
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ message: "Lỗi khi xóa bài hát khỏi Playlist" });
+  }
 };
