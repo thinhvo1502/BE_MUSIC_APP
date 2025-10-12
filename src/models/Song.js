@@ -1,8 +1,10 @@
 const mongoose = require("mongoose");
+const Artist = require("./Artist");
+const Album = require("./Album");
 
 const songSchema = new mongoose.Schema(
   {
-    spotifyId: { type: String, sparse: true, unique: true},
+    spotifyId: { type: String, sparse: true, unique: true },
     title: { type: String, required: true },
     genre: { type: String },
     cover: { type: String },
@@ -17,5 +19,24 @@ const songSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+songSchema.pre("save", async function (next) {
+  try {
+    if (this.isNew) {
+      if (this.artist) {
+        await Artist.findByIdAndUpdate(this.artist, {
+          $push: { songs: this._id },
+        });
+      }
+      if (this.album) {
+        await Album.findByIdAndUpdate(this.album, {
+          $push: { songs: this._id },
+        });
+      }
+    }
+    next();
+  } catch (err) {
+    next(err);
+  }
+});
 
 module.exports = mongoose.model("Song", songSchema);
