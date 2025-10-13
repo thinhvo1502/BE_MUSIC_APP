@@ -1,7 +1,7 @@
 const Song = require("../models/Song");
 const Artist = require("../models/Artist");
 const Album = require("../models/Album");
-const { getJamendoTracks } = require("../config/jamendo");
+const { getJamendoTracks, getJamendoArtists } = require("../config/jamendo");
 // [POST] /api/songs
 exports.createSong = async (req, res) => {
   try {
@@ -37,7 +37,6 @@ exports.createSong = async (req, res) => {
 // [GET] /api/songs
 exports.getAllSongs = async (req, res) => {
   try {
-    const song = await Song.find();
     const {
       genere,
       artist,
@@ -132,17 +131,23 @@ exports.getJamendoSongs = async (req, res) => {
   try {
     const { search, limit } = req.query;
     const tracks = await getJamendoTracks({
-      limit: limit || 10,
-      search: search || "",
+      limit: 1,
+      search: "",
     });
-
+    // console.log(tracks[0]);
     const formatted = tracks.map((t) => ({
+      spotifyId: t.id,
       title: t.name,
-      artist: t.artist_name,
-      audio: t.audio,
-      image: t.album_image,
+      genre: t.musicinfo?.tags?.genres,
+      cover: t.image,
+      url: t.audio,
       duration: t.duration,
-      genre: t.musicinfo?.tag?.genres?.[0] || "Unknown",
+      lyric: "", // Jamendo does not provide lyrics
+      playCount: t.stats?.listened_total || 0,
+      likes: t.stats?.favorited_total || 0,
+      artist: t.artist_name,
+      album: t.album_name,
+      position: t.position,
     }));
 
     res.json({ count: formatted.length, tracks: formatted });
@@ -153,7 +158,7 @@ exports.getJamendoSongs = async (req, res) => {
 };
 exports.importJamendoSongs = async (req, res) => {
   try {
-    const { limit = 10 } = req.querry;
+    const { limit } = req.query;
     const tracks = await getJamendoTracks({ limit });
 
     const newSongs = [];
@@ -162,7 +167,16 @@ exports.importJamendoSongs = async (req, res) => {
       // find or create artist
       let artistDoc = await Artist.findOne({ name: t.artist_name });
       if (!artistDoc) {
-        artistDoc = await Artist.create({ name: t.artist_name });
+        const artistRes = await getJamendoArtists(t.artist_name);
+        const artistInfo = artistRes && artistRes[0];
+        // console.log("artist info: ", artistRes);
+        artistDoc = await Artist.create({
+          artist_id: artistInfo?.id,
+          name: artistInfo?.name || t.artist_name,
+          avatar: artistInfo?.image || "",
+          website: artistInfo?.website || "",
+          joindate: artistInfo?.joindate || null,
+        });
       }
 
       // find or create album
@@ -171,12 +185,12 @@ exports.importJamendoSongs = async (req, res) => {
         artist: artistDoc._id,
       });
       if (!albumDoc) {
-        albumDoc = await Abum.create({
+        albumDoc = await Album.create({
           title: t.album_name,
           artist: artistDoc._id,
           cover: t.album_image,
-          releaseDate: t.album_release_date,
-          genre,
+          release_date: t.releasedate,
+          genre: t.musicinfo?.tags?.genres || ["Unknown"],
         });
       }
 
@@ -184,19 +198,34 @@ exports.importJamendoSongs = async (req, res) => {
       newSongs.push({
         spotifyId: t.id,
         title: t.name,
-        genre: t.musicinfo?.tags?.[0] || "Unknown",
+        genre: t.musicinfo?.tags?.genres || ["Unknown"],
         cover: t.image,
         url: t.audio,
         duration: t.duration,
-        lyric: "", // Jamendo does not provide lyrics
+        lyric: t.lyrics || "", // Jamendo does not provide lyrics
         playCount: t.stats?.listened_total || 0,
         likes: t.stats?.favorited_total || 0,
         artist: artistDoc._id,
         album: albumDoc._id,
+        position: t.position,
       });
     }
     // insert songs
-    await Song.insertMany(newSongs, { ordered: false });
+    const insertedSongs = await Song.insertMany(newSongs, { ordered: false });
+
+    // Cập nhật lại artist và album
+    for (const song of insertedSongs) {
+      if (song.artist) {
+        await Artist.findByIdAndUpdate(song.artist, {
+          $addToSet: { songs: song._id },
+        });
+      }
+      if (song.album) {
+        await Album.findByIdAndUpdate(song.album, {
+          $addToSet: { songs: song._id },
+        });
+      }
+    }
     res.json({ message: `Imported ${newSongs.length} songs from Jamendo` });
   } catch (err) {
     console.error(err);

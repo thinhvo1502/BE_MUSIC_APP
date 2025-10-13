@@ -4,9 +4,9 @@ const Album = require("./Album");
 
 const songSchema = new mongoose.Schema(
   {
-    spotifyId: { type: String, sparse: true, unique: true },
+    spotifyId: { type: Number, sparse: true, unique: true },
     title: { type: String, required: true },
-    genre: { type: String },
+    genre: { type: [String], default: ["Unknown"] },
     cover: { type: String },
     url: { type: String, required: true },
     duration: { type: Number },
@@ -15,6 +15,7 @@ const songSchema = new mongoose.Schema(
     likes: { type: Number, default: 0 },
     artist: { type: mongoose.Schema.Types.ObjectId, ref: "Artist" },
     album: { type: mongoose.Schema.Types.ObjectId, ref: "Album" },
+    position: { type: Number },
     // createdAt: { type: Date, default: Date.now },
   },
   { timestamps: true }

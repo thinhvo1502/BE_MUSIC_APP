@@ -1,10 +1,10 @@
-POST http://localhost:5000/api/auth/login
-Content-Type: application/json
+# POST http://localhost:5000/api/auth/login
+# Content-Type: application/json
 
-{
-  "email": "thinh1@example.com",
-  "password": "123456"
-}
+# {
+#   "email": "thinh1@example.com",
+#   "password": "123456"
+# }
 
 # POST http://localhost:5000/api/auth/register
 # Content-Type: application/json
@@ -15,6 +15,19 @@ Content-Type: application/json
 #   "password": "123456"
 # }
 
-GET http://localhost:5000/api/auth/profile
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4ZWExN2NiNDMzZDIzMTRiZDBmODYwMCIsInVzZXJuYW1lIjoidGhpbmgxIiwicm9sZSI6InVzZXIiLCJpYXQiOjE3NjAxNzIwMjAsImV4cCI6MTc2MDE3MjkyMH0.e7TZaTCIlAldtep0kVkITuds2E7R2eUot-hE1SIJPmw
+# GET http://localhost:5000/api/auth/profile
+# Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4ZWExN2NiNDMzZDIzMTRiZDBmODYwMCIsInVzZXJuYW1lIjoidGhpbmgxIiwicm9sZSI6InVzZXIiLCJpYXQiOjE3NjAxNzIwMjAsImV4cCI6MTc2MDE3MjkyMH0.e7TZaTCIlAldtep0kVkITuds2E7R2eUot-hE1SIJPmw
+# Content-Type: application/json
+
+# POST http://localhost:5000/api/auth/logout
+# Content-Type: application/json
+
+# {
+#   "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4ZWExN2NiNDMzZDIzMTRiZDBmODYwMCIsImlhdCI6MTc2MDE3MTk3OSwiZXhwIjoxNzYwNzc2Nzc5fQ.Wpew0QdHuhu17Nu8H0KP2N5Ls0cRT9k6_A6YiXhBW4U"
+# }
+
+GET http://localhost:5000/api/songs/jamendo/import
 Content-Type: application/json
+
+
+

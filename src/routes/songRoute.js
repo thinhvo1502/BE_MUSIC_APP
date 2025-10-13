@@ -8,6 +8,11 @@ const {
   deleteSong,
   importJamendoSongs,
   getLyrics,
+  getTopSongs,
+  getMostPlayed,
+  getNewRelease,
+  getRecommendedSongs,
+  getJamendoSongs,
 } = require("../controllers/songController");
 const { protect } = require("../middleware/authMiddleware");
 // public routes
@@ -17,7 +22,7 @@ router.get("/:id", getSongById);
 router.post("/", protect, createSong);
 router.put("/:id", protect, updateSong);
 router.delete("/:id", protect, deleteSong);
-router.get("/jamendo", importJamendoSongs);
+router.get("/jamendo/import", importJamendoSongs);
 router.get("/lyrics", getLyrics);
 
 router.get("/top", getTopSongs);
