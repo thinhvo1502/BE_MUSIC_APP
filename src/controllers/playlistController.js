@@ -2,6 +2,7 @@ const axios = require("axios");
 const Playlist = require("../models/Playlist");
 const Song = require("../models/Song");
 const Artist = require("../models/Artist");
+require("dotenv").config();
 
 const JAMENDO_CLIENT_ID = process.env.JAMENDO_CLIENT_ID;
 

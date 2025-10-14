@@ -4,6 +4,7 @@ const connectDB = require("./config/db");
 const authRoutes = require("./routes/authRoutes");
 const songRoutes = require("./routes/songRoute");
 const playlistRoutes = require("./routes/playlistRoutes");
+const albumRoutes = require("./routes/albumRoutes");
 const app = express();
 connectDB();
 
@@ -12,6 +13,7 @@ app.use(express.json());
 app.use("/api/auth", authRoutes);
 app.use("/api/songs", songRoutes);
 app.use("/api/playlists", playlistRoutes);
+app.use("/api/albums", albumRoutes);
 
 app.get("/", (req, res) => res.send("Music App API Running"));
 module.exports = app;
