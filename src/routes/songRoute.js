@@ -17,16 +17,17 @@ const {
 const { protect } = require("../middleware/authMiddleware");
 // public routes
 router.get("/", getAllSongs);
+router.get("/top", getTopSongs);
+router.get("/most-played", getMostPlayed);
+router.get("/new-release", getNewRelease);
+router.get("/lyrics", getLyrics);
+router.get("/jamendo/import", importJamendoSongs);
+router.get("/:id/recommend", getRecommendedSongs);
 router.get("/:id", getSongById);
+
 // protected routes
 router.post("/", protect, createSong);
 router.put("/:id", protect, updateSong);
 router.delete("/:id", protect, deleteSong);
-router.get("/jamendo/import", importJamendoSongs);
-router.get("/lyrics", getLyrics);
 
-router.get("/top", getTopSongs);
-router.get("/most-played", getMostPlayed);
-router.get("/new-release", getNewRelease);
-router.get("/:id/recommend", getRecommendedSongs);
 module.exports = router;

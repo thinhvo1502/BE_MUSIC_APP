@@ -2,6 +2,7 @@ const Song = require("../models/Song");
 const Artist = require("../models/Artist");
 const Album = require("../models/Album");
 const { getJamendoTracks, getJamendoArtists } = require("../config/jamendo");
+const axios = require("axios");
 // [POST] /api/songs
 exports.createSong = async (req, res) => {
   try {
@@ -50,6 +51,8 @@ exports.getAllSongs = async (req, res) => {
     if (genere) query.genre = genere;
     if (artist) query.artist = artist;
     if (album) query.album = album;
+
+    const total = await Song.countDocuments(query);
     const songs = await Song.find(query)
       .populate("artist", "name")
       .populate("album", "title")
@@ -236,10 +239,11 @@ exports.importJamendoSongs = async (req, res) => {
     res.status(500).json({ message: "Importing Jamendo songs failed" });
   }
 };
-// [GET] /api/songs/lyrics?artist=Coldplay&title=Yellow
+// [GET] /api/songs/lyrics/:id?artist=Coldplay&title=Yellow
 exports.getLyrics = async (req, res) => {
   try {
     const { artist, title } = req.query;
+    const { id } = req.params;
     if (!artist || !title) {
       return res.status(400).json({ message: "Missing artist or title" });
     }
@@ -249,10 +253,20 @@ exports.getLyrics = async (req, res) => {
     )}/${encodeURIComponent(title)}`;
     const { data } = await axios.get(url);
 
+    const song = await Song.findByIdAndUpdate(
+      id,
+      { lyric: data.lyrics || "Lyrics not found" },
+      { new: true }
+    );
+    if (!song) {
+      return res.status(404).json({ message: "Song not found" });
+    }
+
     res.json({
       artist,
       title,
-      lyrics: data.lyrics || "Lyrics not found.",
+      lyrics: song.lyric || "Lyrics not found.",
+      song,
     });
   } catch (err) {
     console.error(err);
@@ -282,12 +296,12 @@ exports.getRecommendedSongs = async (req, res) => {
 };
 // [GET] /api/songs/top?limit=5
 exports.getTopSongs = async (req, res) => {
-  const limit = parseInt(req.query.limit) || 10;
-
+  const limit = parseInt(req.query.limit) || 5;
   try {
-    const songs = await Song.find().sort({ likes: -1 }).limit(limit);
+    const songs = await Song.find();
     res.json(songs);
   } catch (err) {
+    console.error("Lỗi khi lấy top songs:", err);
     res.status(500).json({ message: "Failed to get top songs" });
   }
 };
