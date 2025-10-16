@@ -22,6 +22,8 @@ const getAlbums = async (req, res) => {
   } catch (error) {
     res.status(500).json({ message: "Lỗi khi lấy danh sách album", error: error.message });
   }
+
+  
 };
 
 //GET album details by ID
@@ -60,64 +62,86 @@ const getAlbumById = async (req, res) => {
 //GET albums by artist name
 const getAlbumsByArtist = async (req, res) => {
   try {
-    const { 
+    const {
       artist,
-      search = "", 
-      limit = 10, 
-      offset = 0 
+      search = "",
+      limit = 10,
+      offset = 0,
     } = req.query;
-    
-    if (!artist) {
-      return res.status(400).json({ 
+
+    if ( !artist ) {
+      return res.status(400).json({
         success: false,
-        message: "Artist name is required" 
+        message: "Vui lòng nhập tên nghệ sĩ",
       });
     }
 
-    const url = `${JAMENDO_API}/?client_id=${CLIENT_ID}&format=json&limit=100&offset=${offset}&artist_name=${encodeURIComponent(artist)}&namesearch=${encodeURIComponent(search)}`;
-    
+    // call api
+    const url = `${JAMENDO_API}/?client_id=${CLIENT_ID}&format=json&limit=100&offset=${offset}&artist_name=${encodeURIComponent(
+      artist
+    )}&namesearch=${encodeURIComponent(search)}`;
+
     const { data } = await axios.get(url);
 
-    if (!data.results || data.results.length === 0) {
+    if ( !data.results || data.results.length === 0) {
       return res.status(404).json({
         success: false,
-        message: "No albums found for this artist with the given search criteria"
+        message: "Không tìm thấy album nào cho nghệ sĩ này",
       });
     }
 
-    // Filter results to match exact artist name
-    const filteredAlbums = data.results.filter(album => 
-      album.artist_name.toLowerCase() === artist.toLowerCase()
-    );
+    const albums = data.results
+      .filter(album => album.artist_name.toLowerCase().includes(search.toLowerCase()))
+      .map(album => ({
+        id: album.id,
+        title: album.title,
+        cover: album.cover,
+        artist_name: album.artist_name,
+        release_date: album.release_date,
+        track_count: album.track_count,
+        image: album.image,
+        genre: album.musicinfo?.tags?.genres || ["Unknows"],
+        audiodownload: album.audiodownload,
+        shareurl: album.shareurl,
+      }));
+    // // filter artists accurately
+    // const filteredAlbums = data.results.filter(
+    //   (album) => album.artist_name.toLowerCase() === artist.toLowerCase()
+    // );
 
-    // Map filtered results
-    const albums = filteredAlbums.map((album) => ({
-      id: album.id,
-      title: album.name,
-      artist_name: album.artist_name,
-      cover: album.image,
-      genre: album.musicinfo?.tags?.genres || ["Unknown"],
-      release_date: album.releasedate,
-      tracks_count: album.tracks_count || 0
-    }));
+    // // map data res
+    // const albums = filteredAlbums.map((album) => ({
+    //   id: album.id,
+    //   title: album.title,
+    //   cover: album.cover,
+    //   genre: album.genre,
+    //   realse_date: album.realse_date,
+    //   artist_name: album.artist_name,
+    // }));
 
-    // Apply pagination after filtering
-    const paginatedAlbums = albums.slice(offset, offset + limit);
+    // phan trang sau khi loc
+    // const paginatedAlbums = albums.slice(offset, offset + limit);
+
+    // res.json({
+    //   success: true,
+    //   total: albums.length,
+    //   offset: Number(offset),
+    //   limit: Number(limit),
+    //   search,
+    //   data: paginatedAlbums,
+    // });
 
     res.json({
       success: true,
-      total: albums.length,
-      offset: Number(offset),
-      limit: Number(limit),
-      search: search,
-      data: paginatedAlbums
+      count: albums.length,
+      data: albums,
     });
 
   } catch (error) {
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
-      message: "Error searching albums by artist",
-      error: error.message 
+      message: "Lỗi khi tìm kiếm album theo nghệ sĩ",
+      error: error.message,
     });
   }
 };

@@ -12,7 +12,7 @@ const {
 
 // public routes
 router.get('/', getAlbums);
-router.get('/aritist', getAlbumsByArtist);
+router.get('/artist', getAlbumsByArtist);
 router.get('/:id', getAlbumById);
 
 
