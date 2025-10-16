@@ -192,6 +192,10 @@ exports.importJamendoSongs = async (req, res) => {
           release_date: t.releasedate,
           genre: t.musicinfo?.tags?.genres || ["Unknown"],
         });
+        // add album to artist's album array
+        await Artist.findByIdAndUpdate(artistDoc._id, {
+          $addToSet: { albums: albumDoc._id },
+        });
       }
 
       // prepare song data

@@ -13,7 +13,7 @@ async function getJamendoTracks({ limit = 1, search = "" }) {
   // const url = `${JAMENDO_API}/tracks/?client_id=${CLIENT_ID}&format=json&limit=${limit}&offset=1&search=${encodeURIComponent(
   //   search
   // )}&include=musicinfo+stats+lyrics&audioformat=mp31`;
-  const url = `${JAMENDO_API}/tracks/?client_id=${CLIENT_ID}&format=json&limit=${limit}&offset=2&include=musicinfo+stats+lyrics&audioformat=mp31`;
+  const url = `${JAMENDO_API}/tracks/?client_id=${CLIENT_ID}&format=json&limit=${limit}&include=musicinfo+stats+lyrics&audioformat=mp31&featured=1&lang=en&offset=1`;
 
   const data = await axios.get(url);
   // console.log(data.data.results);
