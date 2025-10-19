@@ -201,6 +201,18 @@ exports.importJamendoSongs = async (req, res) => {
         });
       }
 
+      // fetch lyrics (base-effort)
+      let lyricText = "";
+      try {
+        const url = `https://api.lyrics.ovh/v1/${encodeURIComponent(
+          t.artist_name
+        )}/${encodeURIComponent(t.name)}`;
+        const lyricRes = await axios.get(url, { timeout: 5000 });
+        lyricText = lyricRes.data?.lyrics || "";
+      } catch (e) {
+        // ignore lyric errors, keep lyricText = ""
+      }
+
       // prepare song data
       newSongs.push({
         spotifyId: t.id,
@@ -209,7 +221,7 @@ exports.importJamendoSongs = async (req, res) => {
         cover: t.image,
         url: t.audio,
         duration: t.duration,
-        lyric: t.lyrics || "", // Jamendo does not provide lyrics
+        lyric: lyricText, // Jamendo does not provide lyrics
         playCount: t.stats?.listened_total || 0,
         likes: t.stats?.favorited_total || 0,
         artist: artistDoc._id,
@@ -268,6 +280,9 @@ exports.getLyrics = async (req, res) => {
       lyrics: song.lyric || "Lyrics not found.",
       song,
     });
+    // res.json({
+    //   lyric: data.lyrics
+    // })
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Failed to fetch lyrics" });
