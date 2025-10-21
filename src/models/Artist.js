@@ -10,6 +10,7 @@ const artistSchema = new mongoose.Schema(
     joindate: { type: Date },
     albums: [{ type: mongoose.Schema.Types.ObjectId, ref: "Album" }],
     songs: [{ type: mongoose.Schema.Types.ObjectId, ref: "Song" }],
+    isDeleted: { type: Boolean, default: false},  // nếu delete thì ẩn 1 field của artist
   },
   { timestamps: true }
 );

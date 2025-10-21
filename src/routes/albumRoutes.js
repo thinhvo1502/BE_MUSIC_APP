@@ -4,7 +4,7 @@ const router = express.Router();
 const {
     getAlbums,
     getAlbumById,
-    getAlbumsByArtist,
+    getAlbumsByArtistById,
 } = require("../controllers/albumController");
 
 // const { protect } = require("../middleware/authMiddleware");
@@ -12,7 +12,7 @@ const {
 
 // public routes
 router.get('/', getAlbums);
-router.get('/artist', getAlbumsByArtist);
+router.get('/artist', getAlbumsByArtistById);
 router.get('/:id', getAlbumById);
 
 

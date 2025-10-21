@@ -1,6 +1,7 @@
 const Artist = require('../models/Artist');
 const axios = require('axios');
 const mongoose = require("mongoose");
+const { getAlbumsByArtistById } = require('../controllers/albumController');
 const { getJamendoArtists } = require('../config/jamendo');
 
 const JAMENDO_API = "https://api.jamendo.com/v3.0";
@@ -14,13 +15,13 @@ const getALlArtists = async (req, res) => {
         const url = `${JAMENDO_API}/artists/?client_id=${CLIENT_ID}&format=json&limit=${limit}&offset=${offset}&name=${encodeURIComponent(search)}`;
         const { data } = await axios.get(url);
 
-        if ( !data.results ) {
+        if ( !data?.results || data.results.length === 0 ) {
             return res.status(404).json({
                 success: false,
                 message: "No artists found",
             });
         }
-
+        
         const artists = data.results.map(artist =>({
             id: artist.id,
             name: artist.name,
@@ -29,9 +30,9 @@ const getALlArtists = async (req, res) => {
             image: artist.image,
         }));
 
-        res.json({
+        res.status(200).json({
             success: true,
-            total: data.headers.results_count,
+            total: data.headers?.results_count || artists.length,
             data: artists,
         });
 
@@ -189,11 +190,15 @@ const updatedArtist = async ( req, res ) => {
     }
 };
 
+// DELETE chua xong dang de tam day
 const deleteArtist = async ( req, res ) => {
     try {
         const { id } = req.params;
-        const artist = await Artist.findByIdAndDelete(
-            { _id: id},
+
+        const artist = await Artist.findByIdAndUpdate(
+            id, 
+            // { isDeleted: true },
+            // { new: true},
         );
 
         if ( !artist ) {
@@ -206,6 +211,7 @@ const deleteArtist = async ( req, res ) => {
         res.json({
             success: true,
             message: "Artist deleted successfully",
+            data: artist,
         });
     } catch (error) {
         res.status(500).json({
@@ -216,4 +222,4 @@ const deleteArtist = async ( req, res ) => {
     }
 };
 
-module.exports = { getALlArtists, getArtistById, createArtist, updatedArtist, deleteArtist };
+module.exports = { getALlArtists, getArtistById, getAlbumsByArtistById, createArtist, updatedArtist, deleteArtist };
