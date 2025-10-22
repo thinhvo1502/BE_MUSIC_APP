@@ -15,25 +15,48 @@ const getALlArtists = async (req, res) => {
         const url = `${JAMENDO_API}/artists/?client_id=${CLIENT_ID}&format=json&limit=${limit}&offset=${offset}&name=${encodeURIComponent(search)}`;
         const { data } = await axios.get(url);
 
-        if ( !data?.results || data.results.length === 0 ) {
-            return res.status(404).json({
-                success: false,
-                message: "No artists found",
-            });
-        }
-        
-        const artists = data.results.map(artist =>({
+        const apiArtists = (data?.results || []).map( artist => ({
             id: artist.id,
+            artist_id: artist.id,
+            name: artist.name,
+            website: artist.website || '',
+            joindate: artist.joindate || '',
+            avatar: artist.image || '',
+            source: 'jamendo',
+        }));
+
+        const dbArtists = await Artist.find({
+            ...(search ? { name: { $regex: search, $options: 'i' } } : {}),
+            isDeleted: { $ne: true }  // chỉ lấy những ai chưa bị ẩn
+        });
+
+         const localArtists = dbArtists.map(artist => ({
+            id: artist._id,
+            artist_id: artist.artist_id,
             name: artist.name,
             website: artist.website,
             joindate: artist.joindate,
-            image: artist.image,
+            avatar: artist.avatar,
+            source: 'local',
+            bio: artist.bio,
+            isDeleted: artist.isDeleted ?? false,
         }));
+
+        const dbMap = localArtists.reduce((acc, artist) => {
+            acc[artist.artist_id] = artist;
+            return acc;
+        }, {});
+
+        const mergedArtist = [
+            ...localArtists,
+            ...apiArtists.filter(artist => !dbMap[artist.artist_id]),
+        ];
 
         res.status(200).json({
             success: true,
-            total: data.headers?.results_count || artists.length,
-            data: artists,
+            source: "api + db",
+            total: mergedArtist.length,
+            data: mergedArtist,
         });
 
     } catch (error) {
@@ -197,8 +220,8 @@ const deleteArtist = async ( req, res ) => {
 
         const artist = await Artist.findByIdAndUpdate(
             id, 
-            // { isDeleted: true },
-            // { new: true},
+            { isDeleted: true },
+            { new: true},
         );
 
         if ( !artist ) {
