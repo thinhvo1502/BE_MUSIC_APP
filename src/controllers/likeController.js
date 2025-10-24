@@ -21,28 +21,19 @@ exports.toggleLike = async (req, res) => {
 
     if (!hasLiked) {
       // console.log("haha");
-      await User.findByIdAndUpdate(
-        userId,
-        { $addToSet: { likedSongs: song._id } },
-        { session }
-      );
+      user.likedSongs = user.likedSongs || [];
+      user.likedSongs.push(song._id);
+      song.likes = (song.likes || 0) + 1;
       action = "liked";
-      await Song.findByIdAndUpdate(songId, { $inc: { likes: 1 } }, { session });
     } else {
-      console.log("huhu");
       // remove like
-      await User.findByIdAndUpdate(
-        userId,
-        { $pull: { likedSongs: song._id } },
-        { session }
-      );
-      await Song.findByIdAndUpdate(
-        songId,
-        { $inc: { likes: -1 } },
-        { session }
-      );
+      user.likedSongs = user.likedSongs.filter((s) => !s.equals(song._id));
+      song.likes = Math.max(0, (song.likes || 0) - 1);
       action = "unliked";
     }
+
+    await user.save({ session });
+    await song.save({ session });
     await session.commitTransaction();
     session.endSession();
 
@@ -56,7 +47,9 @@ exports.toggleLike = async (req, res) => {
     await session.abortTransaction();
     session.endSession();
     console.error(err);
-    res.status(500).json({ message: "Toggle like failed" });
+    return res
+      .status(500)
+      .json({ message: "Toggle like failed", error: err.message });
   }
 };
 // [GET] /api/users/:id/likes
