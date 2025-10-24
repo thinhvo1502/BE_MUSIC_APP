@@ -30,6 +30,6 @@ GET http://localhost:5000/api/songs/jamendo/import
 Content-Type: application/json
 
 
-GET http://localhost:5000/api/albums?search=chill //albums
-GET http://localhost:5000/api/albums/123456 //albums/:id
-GET http://localhost:5000/api/albums/artist?artist=Jahzzar&limit=5&offset=0 //albums/artist
+# GET http://localhost:5000/api/albums?search=chill //albums
+# GET http://localhost:5000/api/albums/123456 //albums/:id
+# GET http://localhost:5000/api/albums/artist?artist=Jahzzar&limit=5&offset=0 //albums/artist

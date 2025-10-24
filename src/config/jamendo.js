@@ -9,7 +9,7 @@ const CLIENT_ID = process.env.JAMENDO_CLIENT_ID;
 if (!CLIENT_ID) {
   throw new Error("JAMENDO_CLIENT_ID is not set in environment variables");
 }
-async function getJamendoTracks({ limit = 1, search = "" }) {
+async function getJamendoTracks({ limit = 10, search = "" }) {
   // const url = `${JAMENDO_API}/tracks/?client_id=${CLIENT_ID}&format=json&limit=${limit}&offset=1&search=${encodeURIComponent(
   //   search
   // )}&include=musicinfo+stats+lyrics&audioformat=mp31`;

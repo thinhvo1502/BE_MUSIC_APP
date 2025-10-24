@@ -221,7 +221,7 @@ exports.importJamendoSongs = async (req, res) => {
         cover: t.image,
         url: t.audio,
         duration: t.duration,
-        lyric: lyricText, // Jamendo does not provide lyrics
+        lyric: lyricText !== "" ? lyricText : t.lyrics, // Jamendo does not provide lyrics
         playCount: t.stats?.listened_total || 0,
         likes: t.stats?.favorited_total || 0,
         artist: artistDoc._id,
