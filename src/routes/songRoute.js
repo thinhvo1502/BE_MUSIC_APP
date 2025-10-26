@@ -15,6 +15,11 @@ const {
   getJamendoSongs,
 } = require("../controllers/songController");
 const { toggleLike } = require("../controllers/likeController");
+const {
+  getComments,
+  addComment,
+  deleteComment,
+} = require("../controllers/commentController");
 const { protect } = require("../middleware/authMiddleware");
 // public routes
 router.get("/", getAllSongs);
@@ -25,6 +30,9 @@ router.get("/lyrics", getLyrics);
 router.get("/jamendo/import", importJamendoSongs);
 router.get("/:id/recommend", getRecommendedSongs);
 router.post("/:id/like", protect, toggleLike);
+
+router.get("/:id/comments", getComments);
+router.post("/:id/comments", protect, addComment);
 router.get("/:id", getSongById);
 
 // protected routes

@@ -9,6 +9,7 @@ const artistRoutes = require("./routes/artistRoutes");
 const searchRoutes = require("./routes/searchRoutes");
 const userRoutes = require("./routes/userRoutes");
 const historyRoutes = require("./routes/historyRoutes");
+const commentRoutes = require("./routes/commentRoutes");
 const app = express();
 connectDB();
 
@@ -22,5 +23,6 @@ app.use("/api/artists", artistRoutes);
 app.use("/api/search", searchRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/history", historyRoutes);
+app.use("/api/comments", commentRoutes);
 app.get("/", (req, res) => res.send("Music App API Running"));
 module.exports = app;
