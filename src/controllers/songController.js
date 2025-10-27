@@ -288,6 +288,24 @@ exports.getLyrics = async (req, res) => {
     res.status(500).json({ message: "Failed to fetch lyrics" });
   }
 };
+// POST /api/songs/:id/lyrics (admin thêm hoặc chỉnh sửa)
+exports.updateLyrics = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { lyrics } = req.body;
+
+    const song = await Song.findById(id);
+    if (!song) return res.status(404).json({ message: "Song not found" });
+
+    song.lyrics = lyrics;
+    await song.save();
+
+    res.json({ message: "Lyrics updated successfully", lyrics });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Update lyrics failed" });
+  }
+};
 // GET /api/songs/:id/recommend
 exports.getRecommendedSongs = async (req, res) => {
   try {
