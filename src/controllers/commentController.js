@@ -52,11 +52,11 @@ exports.addComment = async (req, res) => {
     const song = await Song.findById(id);
     if (!song) return res.status(404).json({ message: "Song not found" });
 
-    content = cleanContent(content);
+    const cleaned = cleanContent(content);
     const newComment = await Comment.create({
       song: id,
       user: userId,
-      content,
+      content: cleaned,
     });
     const populated = await newComment.populate("user", "username");
     res.status(201).json({
@@ -100,12 +100,12 @@ exports.replyComment = async (req, res) => {
     const parent = await Comment.findById(id);
     if (!parent)
       return res.status(404).json({ message: "Parent comment not found" });
-    content = cleanContent(content);
+    const cleaned = cleanContent(content);
     // error
     const reply = await Comment.create({
       song: parent.song,
       user: userId,
-      content,
+      content: cleaned,
       parentComment: id,
     });
 

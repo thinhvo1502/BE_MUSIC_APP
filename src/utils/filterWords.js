@@ -4,7 +4,7 @@ exports.cleanContent = (text) => {
   let result = text;
   badWords.forEach((word) => {
     const regex = new RegExp(word, "gi");
-    const result = result.replace(regex, "***");
+    result = result.replace(regex, "***");
   });
   return result;
 };

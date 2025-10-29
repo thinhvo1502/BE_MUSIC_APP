@@ -16,6 +16,7 @@ const songSchema = new mongoose.Schema(
     artist: { type: mongoose.Schema.Types.ObjectId, ref: "Artist" },
     album: { type: mongoose.Schema.Types.ObjectId, ref: "Album" },
     position: { type: Number },
+    embeddings: { type: [Number], default: [] },
     // createdAt: { type: Date, default: Date.now },
   },
   { timestamps: true }

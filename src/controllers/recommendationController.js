@@ -1,4 +1,4 @@
-const Song = rquire("../models/Song");
+const Song = require("../models/Song");
 const User = require("../models/User");
 
 // [GET] /api/songs/:id/recommendations
