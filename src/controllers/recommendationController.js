@@ -1,7 +1,7 @@
 const Song = require("../models/Song");
 const User = require("../models/User");
-
-// [GET] /api/songs/:id/recommendations
+const { buildEmbeddings } = require("../services/recommendService");
+// [GET] /api/songs/:id/recommendations (content-based fallback)
 exports.getSimilarSongs = async (req, res) => {
   try {
     const { id } = req.params;
@@ -26,7 +26,11 @@ exports.getSimilarSongs = async (req, res) => {
     if (query.$or.length === 0) delete query.$or; // fallback: no filter
 
     // gợi ý theo genre hoặc artist
-    const recommendations = await Song.find(query).limit(limit);
+    const recommendations = await Song.find(query)
+      .limit(limit)
+      .populate("artist", "name avatar")
+      .populate("album", "title cover")
+      .sort({ playCount: -1, likes: -1 });
 
     res.json({
       baseSong: {
@@ -43,18 +47,33 @@ exports.getSimilarSongs = async (req, res) => {
   }
 };
 // [GET] /api/users/:id/recommendations
+// if ml=1 use recommenderService, otherwise fallback original rule-based
 exports.getUserRecommendations = async (req, res) => {
   try {
     const { id } = req.params;
     const limit = parseInt(req.query.limit) || 10;
-    const user = await User.findById(id)
-      .populate({
-        path: "likedSongs",
-        select: "genre artist",
-      })
-      .populate({ path: "history.song", select: "genre artist" });
-
+    const useML = req.query.ml === "1" || req.query.ml === "true";
+    const user = await User.findById(id);
     if (!user) return res.status(404).json({ message: "User not found" });
+
+    if (useML) {
+      try {
+        const recs = await recommendForUser(id, limit);
+        return res.json({
+          user: user.username,
+          method: "ml",
+          count: recs.length,
+          recommendations: recs,
+        });
+      } catch (e) {
+        console.error("ML recommend failed, falling back:", e.message);
+        // fallthrough to rule-based
+      }
+    }
+
+    // fallback rule-based
+    await user.populate({ path: "likedSongs", select: "genre artist" });
+    await user.populate({ path: "history.song", select: "genre artist" });
 
     // collect liked and history song ids to exclude
     const likedIds = (user.likedSongs || []).map((s) => s._id.toString());
@@ -160,5 +179,14 @@ exports.getUserRecommendations = async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "User recommendations failed" });
+  }
+};
+exports.rebuildEmbeddings = async (req, res) => {
+  try {
+    const info = await buildEmbeddings();
+    res.json({ message: "Embeddings rebuilt", info });
+  } catch (err) {
+    console.error("rebuildEmbeddings error: ", err);
+    res.status(500).json({ message: "Rebuild embeddings failed", err });
   }
 };

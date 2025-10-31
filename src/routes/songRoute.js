@@ -14,6 +14,7 @@ const {
   getRecommendedSongs,
   getJamendoSongs,
 } = require("../controllers/songController");
+const { getSimilarSongs } = require("../controllers/recommendationController");
 const { toggleLike } = require("../controllers/likeController");
 const {
   getComments,
@@ -29,6 +30,7 @@ router.get("/new-release", getNewRelease);
 router.get("/lyrics", getLyrics);
 router.get("/jamendo/import", importJamendoSongs);
 router.get("/:id/recommend", getRecommendedSongs);
+router.get("/:id/recommendations", getSimilarSongs);
 router.post("/:id/like", protect, toggleLike);
 
 router.get("/:id/comments", getComments);
