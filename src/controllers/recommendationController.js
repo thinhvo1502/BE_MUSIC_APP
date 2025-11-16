@@ -1,6 +1,9 @@
 const Song = require("../models/Song");
 const User = require("../models/User");
-const { buildEmbeddings } = require("../services/recommendService");
+const {
+  buildEmbeddings,
+  recommendForUser,
+} = require("../services/recommendService");
 // [GET] /api/songs/:id/recommendations (content-based fallback)
 exports.getSimilarSongs = async (req, res) => {
   try {

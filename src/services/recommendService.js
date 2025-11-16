@@ -26,7 +26,7 @@ async function buildEmbeddings(options = {}) {
     if (Array.isArray(s.genre)) s.genre.forEach((g) => g && genreSet.add(g));
     else if (s.genre) genreSet.add(s.genre);
 
-    const an = s.artist ? s.artist.name || String(s.artist) : nulll;
+    const an = s.artist ? s.artist.name || String(s.artist) : null;
     if (an && !artistMap.has(an)) {
       artistMap.set(an, artistMap.size);
     }
@@ -99,32 +99,31 @@ async function recommendForUser(userId, limit = 10, opts = {}) {
   const userVec = new Array(vectorLength).fill(0);
   let count = 0;
 
-  (user.likedSongs || [])
-    .forEach((s) => {
-      if (
-        s &&
-        Array.isArray(s.embeddings) &&
-        s.embeddings.length === vectorLength
-      ) {
-        for (let i = 0; i < vectorLength; i++) {
-          userVec[i] += (s.embeddings[i] || 0) * 3;
-          count++;
-        }
+  (user.likedSongs || []).forEach((s) => {
+    if (
+      s &&
+      Array.isArray(s.embeddings) &&
+      s.embeddings.length === vectorLength
+    ) {
+      for (let i = 0; i < vectorLength; i++) {
+        userVec[i] += (s.embeddings[i] || 0) * 3;
       }
-    })(user.history || [])
-    .forEach((h) => {
-      const s = h.song;
-      if (
-        s &&
-        Array.isArray(s.embeddings) &&
-        s.embeddings.length === vectorLength
-      ) {
-        for (let i = 0; i < vectorLength; i++) {
-          userVec[i] += (s.embeddings[i] || 0) * 1;
-          count++;
-        }
+      count++;
+    }
+  });
+  (user.history || []).forEach((h) => {
+    const s = h.song;
+    if (
+      s &&
+      Array.isArray(s.embeddings) &&
+      s.embeddings.length === vectorLength
+    ) {
+      for (let i = 0; i < vectorLength; i++) {
+        userVec[i] += (s.embeddings[i] || 0) * 1;
       }
-    });
+      count++;
+    }
+  });
   if (count === 0) {
     const popular = await Song.find()
       .sort({ playCount: -1, likes: -1 })
@@ -136,11 +135,13 @@ async function recommendForUser(userId, limit = 10, opts = {}) {
   // normalize user vector
   const uNorm = norm(userVec) || 1;
   for (let i = 0; i < userVec.length; i++) userVec[i] /= uNorm;
-  // collect candidate songs excluding user's liked/history
+  // Fix: Correct the excludedIds Set creation
   const excludedIds = new Set([
-    ...(user.likedSongs || []).map(s._id ? s._id.toString() : s.toString()),
+    ...(user.likedSongs || []).map((s) =>
+      s._id ? s._id.toString() : s.toString()
+    ),
     ...(user.history || [])
-      .map((h) => (h.song._id ? h.song._id.toString() : null))
+      .map((h) => (h.song && h.song._id ? h.song._id.toString() : null))
       .filter(Boolean),
   ]);
   // stream through songs to computing cosine similarity
