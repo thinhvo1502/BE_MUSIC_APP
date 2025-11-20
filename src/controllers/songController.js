@@ -331,31 +331,41 @@ exports.getRecommendedSongs = async (req, res) => {
 exports.getTopSongs = async (req, res) => {
   const limit = parseInt(req.query.limit) || 5;
   try {
-    const songs = await Song.find();
+    const songs = await Song.find()
+        .populate("artist", "name artist_id avatar") 
+        .populate("album", "title cover");        
+    
     res.json(songs);
   } catch (err) {
-    console.error("Lỗi khi lấy top songs:", err);
-    res.status(500).json({ message: "Failed to get top songs" });
   }
 };
+
 // [GET] /api/songs/most-played
 exports.getMostPlayed = async (req, res) => {
   const limit = parseInt(req.query.limit) || 10;
-
   try {
-    const songs = await Song.find().sort({ playCount: -1 }).limit(limit);
+    const songs = await Song.find()
+        .sort({ playCount: -1 })
+        .limit(limit)
+        .populate("artist", "name artist_id avatar")
+        .populate("album", "title cover");
+
     res.json({ message: "Most played songs", songs });
   } catch (err) {
-    res.status(500).json({ message: "Failed to get most played songs" });
   }
 };
+
 // [GET] /api/songs/new-release
 exports.getNewRelease = async (req, res) => {
   const limit = parseInt(req.query.limit) || 10;
   try {
-    const songs = await Song.find().sort({ createdAt: -1 }).limit(limit);
+    const songs = await Song.find()
+        .sort({ createdAt: -1 })
+        .limit(limit)
+        .populate("artist", "name artist_id avatar")
+        .populate("album", "title cover");
+
     res.json({ message: "Newly released songs", songs });
   } catch (err) {
-    res.status(500).json({ message: "Failed to get new releases" });
   }
 };
