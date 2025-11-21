@@ -2,6 +2,7 @@ const axios = require("axios");
 const Playlist = require("../models/Playlist");
 const Song = require("../models/Song");
 const Artist = require("../models/Artist");
+const User = require("../models/User");
 require("dotenv").config();
 
 const JAMENDO_CLIENT_ID = process.env.JAMENDO_CLIENT_ID;
@@ -23,22 +24,96 @@ const JAMENDO_CLIENT_ID = process.env.JAMENDO_CLIENT_ID;
 //   return response.data.access_token;
 // }
 
+// get '/' all playlists
 exports.getPlaylists = async (req, res) => {
-  const playlists = await Playlist.find();
-  res.json(playlists);
+  try {
+    // const playlistId = req.params.id;
+    const response = await axios.get(
+      `https://api.jamendo.com/v3.0/playlists/?client_id=${JAMENDO_CLIENT_ID}&format=json&limit=10&name=`
+    );
+    
+    const playlists = response.data.results;
+
+    const resultWithTrackCount = playlists.map(p => ({
+      id: p.id,
+      name: p.name,
+      image: p.image,
+      track_count: p.track_count || (p.tracks ? p.tracks.length : 0),
+      tracks: p.tracks || []
+    }));
+
+    res.json({
+      total_playlists: response.data.headers?.results_fullcount || playlists.length,
+      playlists: resultWithTrackCount
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({
+      message: "Lay Playlists tu Jamendo API that bai",
+    });
+  }
 };
 
+// Get :id khi click vo playlist
 exports.getPlaylist = async (req, res) => {
-  const playlist = await Playlist.findById(req.params.id).populate("songs");
-  if (!playlist) return res.status(404).json({ message: "Playlist không tồn tại" });
-  res.json(playlist);
+  try {
+    const playlistId = req.params.id;
+    if (!playlistId) {
+      return res.status(400).json({ message: "Thiếu playlist ID" });
+    }
+
+    const response = await axios.get(
+      `https://api.jamendo.com/v3.0/playlists/tracks/?client_id=${JAMENDO_CLIENT_ID}&id=${playlistId}&format=json`
+    );
+
+    const playlist = response.data.results?.[0];
+    if ( !playlist ) {
+      return res.status(404).json({ message: "Playlist khong ton tai" });
+    }
+    
+    const totalTracks = playlist.tracks?.length || 0;
+
+    res.json({
+      id: playlist.id,
+      name: playlist.name,
+      image: playlist.image,
+      track_count: totalTracks,
+      tracks: playlist.tracks
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      message: 'Lay playlist chi tiet khong thanh cong',
+    })
+  }
 };
 
 exports.createPlaylist = async (req, res) => {
-  const { name, description } = req.body;
-  const newPlaylist = new Playlist({ name, description });
-  await newPlaylist.save();
-  res.status(201).json(newPlaylist);
+  try {
+    const { name, descripsion, songs } = req.body;
+
+    const newPlaylist = new Playlist({
+      name,
+      descripsion,
+      user: req.user._id,
+      songs: songs || []
+    });
+    await newPlaylist.save();
+
+    await User.findByIdAndUpdate(req.user._id, {
+      $push: { playlists: newPlaylist._id },
+    });
+
+    await newPlaylist.populate("songs");
+
+    res.status(201).json({
+      success: true,
+      data: newPlaylist,
+    })
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: "Create Playlist that bai" });
+  }
 };
 
 exports.updatePlaylist = async (req, res) => {

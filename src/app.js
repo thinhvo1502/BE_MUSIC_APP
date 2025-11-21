@@ -16,7 +16,7 @@ connectDB();
 
 app.use(
   cors({
-    origin: "http://localhost:3000", // địa chỉ của React
+    origin: "http://localhost:5173", // địa chỉ của React
     methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true,
   }),
