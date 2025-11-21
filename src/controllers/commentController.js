@@ -4,7 +4,8 @@ const { cleanContent } = require("../utils/filterWords");
 // [GET] /api/songs/:songId/comments?page=1&limit=10
 exports.getComments = async (req, res) => {
   try {
-    const { songId } = req.params;
+    const { id } = req.params; 
+    const songId = id;
     const { page = 1, limit = 10 } = req.query;
 
     const comments = await Comment.find({ song: songId, parentComment: null })

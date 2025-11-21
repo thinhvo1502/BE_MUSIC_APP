@@ -37,8 +37,15 @@ const getUserHistory = async ( req, res ) => {
     const { userId } = req.params;
 
     const histories = await History.find({ user: userId })
-      .populate("song", "title artist album duration")
-      .sort({ listenedAt: -1 });
+      .populate({
+          path: "song",
+          select: "title artist album duration cover url",
+          populate: [
+              { path: "artist", select: "name artist_id avatar" },
+              { path: "album", select: "title" }
+          ]
+      })
+      .sort({ listen_at: -1 });
 
     res.status(200).json({ success: true, count: histories.length, data: histories });
   } catch (error) {

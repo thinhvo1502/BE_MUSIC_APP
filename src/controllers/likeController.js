@@ -56,7 +56,13 @@ exports.toggleLike = async (req, res) => {
 exports.getLikedSongs = async (req, res) => {
   try {
     const userId = req.params.id;
-    const user = await User.findById(userId).populate("likedSongs");
+    const user = await User.findById(userId).populate({
+        path: "likedSongs",
+        populate: [
+            { path: "artist", select: "name artist_id avatar" }, 
+            { path: "album", select: "title cover" }  
+        ]
+    });
 
     if (!user) return res.status(404).json({ message: "User not found" });
 

@@ -124,10 +124,35 @@ exports.login = async (req, res) => {
 // [get] /api/auth/profile
 exports.getProfile = async (req, res) => {
   try {
-    const user = await User.findById(req.user.id).select("-password");
+    const user = await User.findById(req.user.id).select("-password").populate("playlists");;
     if (!user) return res.status(404).json({ message: "User not found" });
     res.json(user);
   } catch (err) {
     res.status(500).json({ message: "Error fetching profile" });
+  }
+};
+
+// [PUT] /api/auth/profile
+exports.updateProfile = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { username, avatar } = req.body;
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      { 
+        username, 
+        avatar
+      }, 
+      { new: true }
+    ).select("-password");
+
+    res.json({
+      success: true,
+      message: "Profile updated successfully",
+      user: updatedUser
+    });
+  } catch (error) {
+    console.error("Update Profile Error:", error);
+    res.status(500).json({ message: "Update failed" });
   }
 };

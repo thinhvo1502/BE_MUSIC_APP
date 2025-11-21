@@ -320,7 +320,8 @@ exports.getRecommendedSongs = async (req, res) => {
         { album: song.album },
       ],
     })
-      .populate("artist", "name")
+      .populate("artist", "name avatar artist_id image") 
+      .populate("album", "title cover")
       .limit(10);
     res.json({ base: song.title, recommendations: relatedSongs });
   } catch (err) {

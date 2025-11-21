@@ -6,6 +6,7 @@ const {
   getProfile,
   refreshToken,
   logout,
+  updateProfile,
 } = require("../controllers/authController");
 const { protect } = require("../middleware/authMiddleware");
 
@@ -17,5 +18,7 @@ router.post("/login", login);
 router.get("/profile", protect, getProfile);
 router.post("/refresh-token", refreshToken);
 router.post("/logout", logout);
+//chỉnh sửa thông tin cá nhân
+router.put('/profile', protect, updateProfile);
 
 module.exports = router;
