@@ -93,7 +93,12 @@ exports.register = async (req, res) => {
 exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
-    const user = await User.findOne({ email });
+    const user = await User.findOne({
+        $or: [
+            { email: email }, 
+            { username: email }
+        ]
+    });
 
     if (!user || !(await user.matchPassword(password))) {
       return res.status(400).json({ message: "Invalid email or password" });
@@ -101,6 +106,8 @@ exports.login = async (req, res) => {
 
     const accessToken = generateAccessToken(user);
     const refreshToken = generateRefreshToken(user);
+
+     user.loginCount = (user.loginCount || 0) + 1;
 
     user.refreshToken.push({ token: refreshToken });
     await user.save();

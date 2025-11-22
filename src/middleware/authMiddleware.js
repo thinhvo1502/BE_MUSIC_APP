@@ -21,3 +21,12 @@ exports.protect = async (req, res, next) => {
     return res.status(401).json({ message: "Invalid token" });
   }
 };
+
+// kiểm tra có phải admin không
+exports.admin = (req, res, next) => {
+  if (req.user && req.user.role === "admin") {
+    next(); 
+  } else {
+    res.status(403).json({ message: "Not authorized as an admin" }); 
+  }
+};

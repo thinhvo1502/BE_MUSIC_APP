@@ -54,8 +54,8 @@ exports.getAllSongs = async (req, res) => {
 
     const total = await Song.countDocuments(query);
     const songs = await Song.find(query)
-      .populate("artist", "name")
-      .populate("album", "title")
+      .populate("artist", "name artist_id avatar")
+      .populate("album", "title cover")
       .sort(sort)
       .skip((page - 1) * limit)
       .limit(parseInt(limit));

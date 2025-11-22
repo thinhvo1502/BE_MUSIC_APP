@@ -19,6 +19,7 @@ const userSchema = new mongoose.Schema(
     refreshToken: [
       { token: String, createdAt: { type: Date, default: Date.now } },
     ],
+    loginCount: { type: Number, default: 0 },
   },
   { timestamps: true }
 );
