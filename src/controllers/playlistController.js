@@ -55,36 +55,48 @@ exports.getPlaylists = async (req, res) => {
 };
 
 // Get :id khi click vo playlist
+// exports.getPlaylist = async (req, res) => {
+//   try {
+//     const playlistId = req.params.id;
+//     if (!playlistId) {
+//       return res.status(400).json({ message: "Thiếu playlist ID" });
+//     }
+
+//     const response = await axios.get(
+//       `https://api.jamendo.com/v3.0/playlists/tracks/?client_id=${JAMENDO_CLIENT_ID}&id=${playlistId}&format=json`
+//     );
+
+//     const playlist = response.data.results?.[0];
+//     if ( !playlist ) {
+//       return res.status(404).json({ message: "Playlist khong ton tai" });
+//     }
+    
+//     const totalTracks = playlist.tracks?.length || 0;
+
+//     res.json({
+//       id: playlist.id,
+//       name: playlist.name,
+//       image: playlist.image,
+//       track_count: totalTracks,
+//       tracks: playlist.tracks
+//     });
+//   } catch (error) {
+//     console.error(error);
+//     res.status(500).json({
+//       message: 'Lay playlist chi tiet khong thanh cong',
+//     })
+//   }
+// };
+
 exports.getPlaylist = async (req, res) => {
   try {
-    const playlistId = req.params.id;
-    if (!playlistId) {
-      return res.status(400).json({ message: "Thiếu playlist ID" });
-    }
+    const playlist = await Playlist.findById(req.params.id).populate("songs");
+    if (!playlist)
+      return res.status(404).json({ message: "Không tìm thấy playlist" });
 
-    const response = await axios.get(
-      `https://api.jamendo.com/v3.0/playlists/tracks/?client_id=${JAMENDO_CLIENT_ID}&id=${playlistId}&format=json`
-    );
-
-    const playlist = response.data.results?.[0];
-    if ( !playlist ) {
-      return res.status(404).json({ message: "Playlist khong ton tai" });
-    }
-    
-    const totalTracks = playlist.tracks?.length || 0;
-
-    res.json({
-      id: playlist.id,
-      name: playlist.name,
-      image: playlist.image,
-      track_count: totalTracks,
-      tracks: playlist.tracks
-    });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({
-      message: 'Lay playlist chi tiet khong thanh cong',
-    })
+    res.json(playlist);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
   }
 };
 
