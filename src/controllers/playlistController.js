@@ -31,7 +31,7 @@ exports.getPlaylists = async (req, res) => {
   try {
     // const playlistId = req.params.id;
     const response = await axios.get(
-      https://api.jamendo.com/v3.0/playlists/?client_id=${JAMENDO_CLIENT_ID}&format=json&limit=10&name=
+      `https://api.jamendo.com/v3.0/playlists/?client_id=${JAMENDO_CLIENT_ID}&format=json&limit=10&name=`
     );
 
     const playlists = response.data.results;
@@ -262,7 +262,7 @@ exports.addSongToPlaylist = async (req, res) => {
     if (!song) {
       // Gọi Jamendo API để lấy thông tin bài hát
       const { data } = await axios.get(
-        https://api.jamendo.com/v3.0/tracks/?client_id=${process.env.JAMENDO_CLIENT_ID}&id=${jamendoId}&format=json
+        `https://api.jamendo.com/v3.0/tracks/?client_id=${process.env.JAMENDO_CLIENT_ID}&id=${jamendoId}&format=json`
       );
 
       const track = data.results[0];

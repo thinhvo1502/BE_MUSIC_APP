@@ -8,8 +8,8 @@ const playlistController = require("../controllers/playlistController");
 
 // public routes
 router.get('/', playlistController.getPlaylists);
-router.get('/:id', playlistController.getPlaylist);
 router.get('/me', protect, playlistController.getMyPlaylists);
+router.get('/:id', playlistController.getPlaylist);
 
 // protect routes
 router.post('/', protect , playlistController.createPlaylist);
