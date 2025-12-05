@@ -1,242 +1,99 @@
-const axios = require("axios");
-const NodeCache = require("node-cache");
+// controllers/albumController.js
+const JamendoService = require('../services/jamendoService');
 
-// const { JAMENDO_API, CLIENT_ID } = process.env;
-const JAMENDO_API = "https://api.jamendo.com/v3.0";
-const CLIENT_ID = process.env.JAMENDO_CLIENT_ID;
-
-const cache = new NodeCache({ stdTTL: 600});
-
-
-const fetchFromJamendo = async (endpoint, params = {}) => {
-  const url = new URL(`${JAMENDO_API}${endpoint}`);
-  url.searchParams.set("client_id", CLIENT_ID);
-  url.searchParams.set("format", "json");
-
-  for (const [key, value] of Object.entries(params)) {
-    if (value !== undefined && value !== null)  url.searchParams.set(key, value);
-  }
-
-  const { data } = await axios.get(url.toString());
-  console.log(url.toString());
-  return data.results;
-};
-
-// GET album (search)
-const getAlbums = async (req, res) => {
+const searchAlbums = async (req, res) => {
   try {
-    const { search } = req.query;
+    const { q: query, limit = 20 } = req.query;
+    if (!query?.trim()) {
+      return res.status(400).json({ success: false, error: 'Tham số "q" là bắt buộc' });
+    }
 
-    const results = await fetchFromJamendo("/", {
-      limit: 10,
-      nameSearch: search || "",
-      include: "musicinfo+stats+tracks+audiodownload",
-    });
+    const data = await JamendoService.searchAlbums(query.trim(), Number(limit));
 
-    const albums = results.map((album) => ({
-      id: album.id,
-      title: album.name,
-      artist_name: album.artist_name,
-      artist_id: album.artist_id,
-      cover: album.image,
-      genre: album.musicinfo?.tags?.genres?.length
-        ? album.musicinfo.tags.genres
-        : ["Unknown"],
-      release_date: album.releasedate,
-      album_url: album.shareurl,
-      track_count: album.tracks?.length || 0,
-      tracks:
-        album.tracks?.map((track) => ({
-          id: track.id,
-          name: track.name,
-          duration: track.duration,
-          audio: track.audio,
-          audiodownload: track.audiodownload,
-        })) || [],
-      rating: album.stats?.rating || 0,
-    }));
+    if (data.headers.status !== 'success') {
+      return res.status(400).json({ success: false, error: data.headers.error_message || 'Lỗi API' });
+    }
 
     res.json({
       success: true,
-      albums: albums.length,
-      data: albums,
+      pagination: data.headers,
+      results: data.results
     });
-
   } catch (error) {
-    res.status(500).json({
-      message: "Lỗi khi lấy danh sách albums",
-      success: false,
-      error: error.message,
-    });
+    console.error('Search albums error:', error.message);
+    res.status(500).json({ success: false, error: 'Không thể kết nối Jamendo' });
   }
 };
 
-// GET album details by id
-const getAlbumById = async (req, res) => {
+const getAlbumDetail = async (req, res) => {
   try {
     const { id } = req.params;
+    if (!id) return res.status(400).json({ success: false, error: 'Thiếu album ID' });
 
-    // Gọi đúng endpoint Jamendo, có thêm include đầy đủ dữ liệu
-    const albumResults = await fetchFromJamendo("/albums", {
-      id,
-    });
+    const data = await JamendoService.getAlbumWithTracks(id);
 
-    // Kiểm tra kết quả
-    if (!albumResults || albumResults.length === 0) {
-      return res.status(404).json({
-        success: false,
-        message: "Không tìm thấy album với ID đã cho",
-      });
+    if (data.headers.status !== 'success' || !data.results[0]) {
+      return res.status(404).json({ success: false, error: 'Album không tồn tại' });
     }
 
-    const trackResults = await fetchFromJamendo("/tracks", { album_id : id});
+    const album = data.results[0];
 
-    const album = albumResults[0];
-    const response = {
-      id: album.id,
-      title: album.name,
-      artist_id: album.artist_id,
-      artist_name: album.artist_name,
-      cover: album.image,
-      genre: album.musicinfo?.tags?.genres?.length
-        ? album.musicinfo.tags.genres
-        : ["Unknown"],
-      track_count: trackResults.length,
-      tracks: trackResults.map(track => ({
-        id: track.id,
-        name: track.name,
-        duration: track.duration,
-        audio: track.audio,
-      })),
-      release_date: album.releasedate,
-      album_url: album.shareurl,
-    };
-
-    res.status(200).json({
+    res.json({
       success: true,
-      data: response,
+      album: {
+        ...album,
+        // zip_download: JamendoService.getAlbumZipUrl(id)
+      },
+      tracks: album.tracks || []
     });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: "Lỗi khi lấy chi tiết album",
-      error: error.message,
-    });
+    console.error('Get album detail error:', error.message);
+    res.status(500).json({ success: false, error: 'Lỗi server' });
   }
 };
 
-
-//GET albums by artist name
-// const getAlbumsByArtist = async (req, res) => {
-//   try {
-//     const {
-//       artist,
-//       search = "",
-//       limit = 10,
-//       offset = 0,
-//     } = req.query;
-
-//     if ( !artist ) {
-//       return res.status(400).json({
-//         success: false,
-//         message: "Vui lòng nhập tên nghệ sĩ",
-//       });
-//     }
-
-//     // call api
-//     const url = `${JAMENDO_API}/?client_id=${CLIENT_ID}&format=json&limit=100&offset=${offset}&artist_name=${encodeURIComponent(
-//       artist
-//     )}&namesearch=${encodeURIComponent(search)}`;
-
-//     const { data } = await axios.get(url);
-
-//     if ( !data.results || data.results.length === 0) {
-//       return res.status(404).json({
-//         success: false,
-//         message: "Không tìm thấy album nào cho nghệ sĩ này",
-//       });
-//     }
-
-//     const albums = data.results
-//       .filter(album => album.artist_name.toLowerCase().includes(search.toLowerCase()))
-//       .map(album => ({
-//         id: album.id,
-//         title: album.title,
-//         cover: album.cover,
-//         artist_name: album.artist_name,
-//         release_date: album.release_date,
-//         track_count: album.track_count,
-//         image: album.image,
-//         genre: album.musicinfo?.tags?.genres || ["Unknows"],
-//         audiodownload: album.audiodownload,
-//         shareurl: album.shareurl,
-//       }));
-      
-//     res.json({
-//       success: true,
-//       count: albums.length,
-//       data: albums,
-//     });
-
-//   } catch (error) {
-//     res.status(500).json({
-//       success: false,
-//       message: "Lỗi khi tìm kiếm album theo nghệ sĩ",
-//       error: error.message,
-//     });
-//   }
-// };
-
-// BE test
-const getAlbumsByArtistById = async ( req, res ) => {
-    try {
-        const { id } = req.params;
-        const { limit = 10, offset = 0 } = req.query;
-
-        if (!id) {
-        return res.status(400).json({
-            success: false,
-            message: "Thiếu ID nghệ sĩ",
-        });
-        }
-
-        const cacheKey = `albums_artist_${id}_${limit}_${offset}`;
-        const cached = cache.get(cacheKey);
-        if (cached) return res.json({ success: true, cached: true, ...cached });
-
-        const url = `${JAMENDO_API}/albums/?client_id=${CLIENT_ID}&format=json&limit=${limit}&offset=${offset}&artist_id=${id}`;
-        const { data } = await axios.get(url);
-        // console.log("Fetching albums for artist:", id);
-        // console.log("URL:", url);
-
-        if (!data.results || data.results.length === 0) {
-        return res.status(404).json({
-            success: false,
-            message: "Không tìm thấy album nào cho nghệ sĩ này",
-        });
-        }
-
-        const albums = data.results.map(album => ({
-        id: album.id,
-        name: album.name,
-        artist_name: album.artist_name,
-        releasedate: album.releasedate,
-        image: album.image,
-        genre: album.musicinfo?.tags?.genres || ["Unknown"],
-        shareurl: album.shareurl,
-        }));
-
-        const result = { count: albums.length, data: albums };
-        cache.set(cacheKey, result);
-
-        res.json({ success: true, ...result });
-    } catch (error) {
-        res.status(500).json({
-        success: false,
-        message: "Lỗi khi lấy album theo ID nghệ sĩ",
-        error: error.message,
-    });
+const getAlbumsByArtist = async (req, res) => {
+  try {
+    const { artist_id } = req.params;
+    if (!artist_id) {
+      return res.status(400).json({ success: false, error: 'Thiếu artist_id' });
     }
+
+    const data = await JamendoService.getAlbumsByArtist(artist_id);
+
+    if (data.headers.status !== 'success') {
+      return res.status(500).json({ success: false, error: 'Lỗi Jamendo API' });
+    }
+
+    if (!data.results || data.results.length === 0) {
+      return res.status(404).json({ success: false, error: 'Không tìm thấy artist' });
+    }
+
+    const artist = data.results[0];
+    const albums = artist.albums || [];
+
+    res.json({
+      success: true,
+      artist_id: artist.id,
+      artist_name: artist.name,
+      total_albums: albums.length,
+      has_albums: albums.length > 0,
+      results: albums.map(a => ({
+        id: a.id,
+        name: a.name,
+        releasedate: a.releasedate || null,
+        image: a.image
+      }))
+    });
+
+  } catch (error) {
+    console.error('Error getAlbumsByArtist:', error.message);
+    res.status(500).json({ success: false, error: 'Lỗi server' });
+  }
 };
 
-module.exports = { getAlbums, getAlbumById, getAlbumsByArtistById };
+module.exports = {
+  searchAlbums,
+  getAlbumDetail,
+  getAlbumsByArtist
+};

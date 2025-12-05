@@ -1,7 +1,7 @@
 const Artist = require('../models/Artist');
 const axios = require('axios');
 const mongoose = require("mongoose");
-const { getAlbumsByArtistById } = require('../controllers/albumController');
+// const { getAlbumsByArtistById } = require('../controllers/albumController');
 const { getJamendoArtists } = require('../config/jamendo');
 
 const JAMENDO_API = "https://api.jamendo.com/v3.0";
@@ -245,4 +245,4 @@ const deleteArtist = async ( req, res ) => {
     }
 };
 
-module.exports = { getALlArtists, getArtistById, getAlbumsByArtistById, createArtist, updatedArtist, deleteArtist };
+module.exports = { getALlArtists, getArtistById, createArtist, updatedArtist, deleteArtist };
