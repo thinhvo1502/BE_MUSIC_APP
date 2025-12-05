@@ -1,3 +1,4 @@
+const mongoose = require("mongoose");
 const Song = require("../models/Song");
 const Artist = require("../models/Artist");
 const Album = require("../models/Album");
@@ -227,6 +228,7 @@ exports.importJamendoSongs = async (req, res) => {
         artist: artistDoc._id,
         album: albumDoc._id,
         position: t.position,
+        release_date: t.releasedate || new Date()
       });
     }
     // insert songs
@@ -309,8 +311,21 @@ exports.updateLyrics = async (req, res) => {
 // GET /api/songs/:id/recommend
 exports.getRecommendedSongs = async (req, res) => {
   try {
-    const song = await Song.findById(req.params.id);
-    if (!song) return res.status(404).json({ message: "Song not found" });
+    const { id } = req.params;
+    let song = null;
+
+    // 1. Kiểm tra xem ID gửi lên có phải ObjectId không?
+    if (mongoose.Types.ObjectId.isValid(id)) {
+        song = await Song.findById(id);
+    } else {
+        // 2. Nếu không phải, tìm theo spotifyId (Jamendo ID)
+        song = await Song.findOne({ spotifyId: id });
+    }
+
+    // 3. Nếu vẫn không thấy bài hát (do chưa import vào DB), trả về rỗng để không crash
+    if (!song) {
+        return res.json({ base: "Unknown", recommendations: [] });
+    }
 
     const relatedSongs = await Song.find({
       _id: { $ne: song._id },
@@ -323,8 +338,10 @@ exports.getRecommendedSongs = async (req, res) => {
       .populate("artist", "name avatar artist_id image") 
       .populate("album", "title cover")
       .limit(10);
+
     res.json({ base: song.title, recommendations: relatedSongs });
   } catch (err) {
+    console.error("Recommendation Error:", err); // Log lỗi ra console để dễ debug
     res.status(500).json({ message: "Failed to fetch recommendations" });
   }
 };
@@ -361,12 +378,18 @@ exports.getNewRelease = async (req, res) => {
   const limit = parseInt(req.query.limit) || 10;
   try {
     const songs = await Song.find()
-        .sort({ createdAt: -1 })
+        .sort({ release_date: -1, createdAt: -1 })
         .limit(limit)
         .populate("artist", "name artist_id avatar")
         .populate("album", "title cover");
 
-    res.json({ message: "Newly released songs", songs });
+    res.json({ 
+        success: true, 
+        message: "Newly released songs", 
+        songs 
+    });
   } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Get new release failed" });
   }
 };

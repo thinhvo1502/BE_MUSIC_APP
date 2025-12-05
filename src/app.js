@@ -16,7 +16,8 @@ connectDB();
 
 app.use(
   cors({
-    origin: "http://localhost:5173", // địa chỉ của React
+    // origin: "https://orange-rock-0468a1700.3.azurestaticapps.net",
+    origin : "http://localhost:5173" ,
     methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true,
   }),

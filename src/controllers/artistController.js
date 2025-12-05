@@ -2,6 +2,7 @@ const Artist = require('../models/Artist');
 const axios = require('axios');
 const mongoose = require("mongoose");
 // const { getAlbumsByArtistById } = require('../controllers/albumController');
+const JamendoService = require('../services/jamendoService');
 const { getJamendoArtists } = require('../config/jamendo');
 
 const JAMENDO_API = "https://api.jamendo.com/v3.0";
@@ -67,7 +68,38 @@ const getALlArtists = async (req, res) => {
        }); 
     }
 };
+// tui thêm hàm này để lấy top tracks của artist
+const getArtistTopTracks = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Gọi service (dù truyền 5 nhưng API có thể trả về nhiều hơn)
+    const data = await JamendoService.getTopTracksByArtist(id, 5);
 
+    if (data.headers.status !== 'success') {
+      return res.status(400).json({ success: false, error: 'Lỗi API Jamendo' });
+    }
+
+    // --- SỬA ĐOẠN NÀY ---
+    // Thêm .slice(0, 5) để ép buộc chỉ lấy 5 bài đầu tiên
+    const tracks = data.results[0]?.tracks
+        .slice(0, 5) // <--- CẮT MẢNG TẠI ĐÂY
+        .map(track => ({
+            id: track.id,
+            title: track.name,
+            duration: track.duration, 
+            image: track.image || track.album_image || "",
+            url: track.audio,
+            artist: data.results[0].name
+        })) || [];
+    // --------------------
+
+    res.json({ success: true, tracks });
+  } catch (error) {
+    console.error("Lỗi getArtistTopTracks:", error);
+    res.status(500).json({ success: false, error: 'Server Error' });
+  }
+};
 // GET artist by ID
 // cái này test postman đang error để tạm đây đi mai t xem lại 
 const getArtistById = async (req, res) => {
@@ -103,6 +135,7 @@ const getArtistById = async (req, res) => {
                 joindate: artist.joindate,
                 image: artist.image,
                 shorturl: artist.shorturl,
+                followers: artist.stats ? artist.stats.fan_count : 0
             }
         });
 
@@ -245,4 +278,4 @@ const deleteArtist = async ( req, res ) => {
     }
 };
 
-module.exports = { getALlArtists, getArtistById, createArtist, updatedArtist, deleteArtist };
+module.exports = { getALlArtists, getArtistById, createArtist, updatedArtist, deleteArtist, getArtistTopTracks };

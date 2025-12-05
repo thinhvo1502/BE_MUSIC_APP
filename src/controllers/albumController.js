@@ -1,6 +1,36 @@
 // controllers/albumController.js
 const JamendoService = require('../services/jamendoService');
 
+const getAlbums = async (req, res) => {
+  try {
+    const { limit = 10 } = req.query;
+
+    // Gọi static method vừa thêm bên Service
+    const data = await JamendoService.getAlbums({ limit: Number(limit) });
+
+    if (data.headers.status !== 'success') {
+      return res.status(400).json({ success: false, error: 'Lỗi API Jamendo' });
+    }
+
+    // Map lại dữ liệu cho gọn gàng (nếu muốn), hoặc trả về raw
+    const results = data.results.map(album => ({
+        id: album.id,
+        name: album.name,
+        image: album.image,
+        artist_name: album.artist_name,
+        releasedate: album.releasedate
+    }));
+
+    res.json({
+      success: true,
+      results: results // hoặc data.results
+    });
+  } catch (error) {
+    console.error('Get albums error:', error.message);
+    res.status(500).json({ success: false, error: 'Lỗi server' });
+  }
+};
+
 const searchAlbums = async (req, res) => {
   try {
     const { q: query, limit = 20 } = req.query;
@@ -51,7 +81,7 @@ const getAlbumDetail = async (req, res) => {
     res.status(500).json({ success: false, error: 'Lỗi server' });
   }
 };
-
+// thêm đoạn này để tui lấy ảnh album của artist
 const getAlbumsByArtist = async (req, res) => {
   try {
     const { artist_id } = req.params;
@@ -72,18 +102,23 @@ const getAlbumsByArtist = async (req, res) => {
     const artist = data.results[0];
     const albums = artist.albums || [];
 
+
+    const results = albums.map(a => ({
+        id: a.id,
+        name: a.name,
+        releasedate: a.releasedate || null,
+        
+        image: a.image || artist.image || "https://placehold.co/500x500?text=No+Image" 
+    }));
+
     res.json({
       success: true,
       artist_id: artist.id,
       artist_name: artist.name,
+      artist_image: artist.image, // Trả thêm ảnh artist gốc để FE dùng nếu cần
       total_albums: albums.length,
       has_albums: albums.length > 0,
-      results: albums.map(a => ({
-        id: a.id,
-        name: a.name,
-        releasedate: a.releasedate || null,
-        image: a.image
-      }))
+      results: results
     });
 
   } catch (error) {
@@ -93,6 +128,7 @@ const getAlbumsByArtist = async (req, res) => {
 };
 
 module.exports = {
+  getAlbums,
   searchAlbums,
   getAlbumDetail,
   getAlbumsByArtist

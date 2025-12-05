@@ -19,6 +19,10 @@ const songSchema = new mongoose.Schema(
     position: { type: Number },
     embeddings: { type: [Number], default: [] },
     // createdAt: { type: Date, default: Date.now },
+    release_date: {
+        type: Date,
+        default: Date.now 
+    }
   },
   { timestamps: true }
 );
