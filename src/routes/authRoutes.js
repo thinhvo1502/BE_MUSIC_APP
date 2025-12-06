@@ -6,6 +6,7 @@ const {
   getProfile,
   refreshToken,
   logout,
+  googleLogin,
 } = require("../controllers/authController");
 const { protect } = require("../middleware/authMiddleware");
 
@@ -13,6 +14,7 @@ const { protect } = require("../middleware/authMiddleware");
 router.post("/register", register);
 // đăng nhập
 router.post("/login", login);
+router.post("/google", googleLogin);
 // lấy thông tin cá nhân
 router.get("/profile", protect, getProfile);
 router.post("/refresh-token", refreshToken);

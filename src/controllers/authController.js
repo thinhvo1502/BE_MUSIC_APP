@@ -131,3 +131,67 @@ exports.getProfile = async (req, res) => {
     res.status(500).json({ message: "Error fetching profile" });
   }
 };
+exports.googleLogin = async (req, res) => {
+  try {
+    const { idToken } = req.body;
+    if (!idToken)
+      return res.status(400).json({ message: "idToken is required" });
+    // verify idToken with google
+    const verifyUrl = `https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(
+      idToken
+    )}`;
+    const { data } = await axios.get(verifyUrl);
+    // ensure token is for our app
+    if (data.aud !== process.env.GOOGLE_CLIENT_ID) {
+      return res.status(400).json({ message: "Invalid id token audience" });
+    }
+    const email = data.email;
+    const name = data.name || "";
+    const picture = data.picture || "";
+    let user = await User.fineOne({ email });
+    if (!user) {
+      // create unique username from email
+      const base =
+        email
+          .split("@")[0]
+          .replace(/[^\w.-]/g, "")
+          .toLowerCase() || "user";
+      let username = base;
+      let i = 0;
+      while (await User.findOne({ username })) {
+        i++;
+        username = `${base}${i}`;
+      }
+      //create user with random password
+      user = await User.create({
+        username,
+        email,
+        password: Math.random().toString(36).slice(2),
+        avatar: picture,
+      });
+    }
+    const accessToken = generateAccessToken(user);
+    const refreshToken = generateRefreshToken(user);
+    // store refresh token
+    user.refreshToken = user.refreshToken || [];
+    user.refreshToken.push({ token: refreshToken });
+    await user.save();
+    res.json({
+      message: "Google login successful",
+      accessToken,
+      refreshToken,
+      user: {
+        id: user._id,
+        username: user.username,
+        email: user.email,
+        avatar: user.avatar,
+        role: user.role,
+      },
+    });
+  } catch (err) {
+    console.error("googleLogin error", err.message || err);
+    res
+      .status(400)
+      .json({ message: "Google login failed", error: err.message || err });
+  }
+};
