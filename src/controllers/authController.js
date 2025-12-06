@@ -8,7 +8,7 @@ const generateAccessToken = (user) => {
   return jwt.sign(
     { id: user._id, username: user.username, role: user.role },
     process.env.JWT_SECRET,
-    { expiresIn: "15m" }
+    { expiresIn: "1d" }
   );
 };
 // tạo refresh token (dài hạn)
@@ -93,7 +93,9 @@ exports.register = async (req, res) => {
 exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
-    const user = await User.findOne({ email });
+    const user = await User.findOne({
+      $or: [{ email: email }, { username: email }],
+    });
 
     if (!user || !(await user.matchPassword(password))) {
       return res.status(400).json({ message: "Invalid email or password" });
@@ -101,6 +103,8 @@ exports.login = async (req, res) => {
 
     const accessToken = generateAccessToken(user);
     const refreshToken = generateRefreshToken(user);
+
+    user.loginCount = (user.loginCount || 0) + 1;
 
     user.refreshToken.push({ token: refreshToken });
     await user.save();
@@ -124,7 +128,9 @@ exports.login = async (req, res) => {
 // [get] /api/auth/profile
 exports.getProfile = async (req, res) => {
   try {
-    const user = await User.findById(req.user.id).select("-password");
+    const user = await User.findById(req.user.id)
+      .select("-password")
+      .populate("playlists");
     if (!user) return res.status(404).json({ message: "User not found" });
     res.json(user);
   } catch (err) {
@@ -193,5 +199,30 @@ exports.googleLogin = async (req, res) => {
     res
       .status(400)
       .json({ message: "Google login failed", error: err.message || err });
+  }
+};
+
+// [PUT] /api/auth/profile
+exports.updateProfile = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { username, avatar } = req.body;
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      {
+        username,
+        avatar,
+      },
+      { new: true }
+    ).select("-password");
+
+    res.json({
+      success: true,
+      message: "Profile updated successfully",
+      user: updatedUser,
+    });
+  } catch (error) {
+    console.error("Update Profile Error:", error);
+    res.status(500).json({ message: "Update failed" });
   }
 };

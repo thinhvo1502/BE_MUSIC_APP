@@ -7,8 +7,9 @@ const {
     createArtist,
     updatedArtist,
     deleteArtist,
+    getArtistTopTracks
 } = require("../controllers/artistController");
-const { getAlbumsByArtistById } = require("../controllers/albumController");
+const { getAlbumsByArtist } = require("../controllers/albumController");
 // const { protect } = require("../middleware/authMiddleware");
 
 
@@ -17,9 +18,10 @@ const { getAlbumsByArtistById } = require("../controllers/albumController");
 router.get('/', getALlArtists);
 router.get('/:id', getArtistById);
 router.post('/', createArtist);
-router.get('/:id/albums', getAlbumsByArtistById);
+router.get('/:artist_id/albums', getAlbumsByArtist);
 router.put('/:id', updatedArtist);
 router.delete('/:id', deleteArtist);
+router.get('/:id/top-tracks', getArtistTopTracks);
 // protect routes
 
 

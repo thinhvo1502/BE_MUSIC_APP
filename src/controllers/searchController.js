@@ -76,22 +76,22 @@ exports.suggest = async (req, res) => {
     if (type === "song" || type === "all") {
       const songs = await Song.find({ title: regex })
         .limit(parseInt(limit))
-        .select("title");
-      suggestions.songs = songs.map((s) => s.title);
+        .select("title cover");
+      suggestions.songs = songs;
     }
 
     if (type === "artist" || type === "all") {
       const artists = await Artist.find({ name: regex })
         .limit(parseInt(limit))
-        .select("name");
-      suggestions.artists = artists.map((a) => a.name);
+        .select("name avatar");
+      suggestions.artists = artists;
     }
 
     if (type === "album" || type === "all") {
       const albums = await Album.find({ title: regex })
         .limit(parseInt(limit))
-        .select("title");
-      suggestions.albums = albums.map((a) => a.title);
+        .select("title cover");
+      suggestions.albums = albums;
     }
 
     res.json({

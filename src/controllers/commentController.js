@@ -1,42 +1,66 @@
+const mongoose = require("mongoose");
 const Comment = require("../models/Comment");
 const Song = require("../models/Song");
 const { cleanContent } = require("../utils/filterWords");
 // [GET] /api/songs/:songId/comments?page=1&limit=10
 exports.getComments = async (req, res) => {
   try {
-    const { songId } = req.params;
+    const { id } = req.params; // ID từ URL (có thể là MongoID hoặc JamendoID)
     const { page = 1, limit = 10 } = req.query;
 
-    const comments = await Comment.find({ song: songId, parentComment: null })
-      .populate("user", "username")
+    let song = null;
+
+    // --- BƯỚC 1: TÌM BÀI HÁT ĐỂ LẤY _id CHUẨN ---
+    if (mongoose.Types.ObjectId.isValid(id)) {
+      song = await Song.findById(id);
+    } else {
+      // Nếu là ID Jamendo, tìm qua spotifyId
+      song = await Song.findOne({ spotifyId: id });
+    }
+
+    // Nếu bài hát chưa có trong DB (chưa ai play/import) -> Chắc chắn chưa có comment
+    if (!song) {
+      return res.json({
+        songId: id,
+        total: 0,
+        page: parseInt(page),
+        totalPages: 0,
+        comments: [],
+      });
+    }
+
+    // --- BƯỚC 2: TÌM COMMENT THEO song._id ---
+    const comments = await Comment.find({ song: song._id, parentComment: null })
+      .populate("user", "username avatar") // Thường cần thêm avatar để hiển thị
       .sort({ createdAt: -1 })
       .skip((page - 1) * limit)
       .limit(parseInt(limit));
 
     const total = await Comment.countDocuments({
-      song: songId,
+      song: song._id,
       parentComment: null,
     });
 
-    // lấy kèm replies (nếu có)
+    // Lấy kèm replies
     const withReplies = await Promise.all(
       comments.map(async (c) => {
         const replies = await Comment.find({ parentComment: c._id })
-          .populate("user", "username")
+          .populate("user", "username avatar")
           .sort({ createdAt: 1 });
         return { ...c.toObject(), replies };
       })
     );
+
     res.json({
-      songId,
+      songId: id,
       total,
       page: parseInt(page),
       totalPages: Math.ceil(total / limit),
       comments: withReplies,
     });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Get comments failed" });
+    console.error("Get Comments Error:", err);
+    res.status(500).json({ message: "Get comments failed", error: err.message });
   }
 };
 // [POST] /api/songs/:songId/comments

@@ -1,22 +1,17 @@
-const express = require("express");
+// routes/albumRoutes.js
+const express = require('express');
 const router = express.Router();
 
 const {
-    getAlbums,
-    getAlbumById,
-    getAlbumsByArtistById,
-} = require("../controllers/albumController");
+  getAlbums,
+  searchAlbums,
+  getAlbumDetail,
+  getAlbumsByArtist
+} = require('../controllers/albumController');
 
-// const { protect } = require("../middleware/authMiddleware");
-
-
-// public routes
 router.get('/', getAlbums);
-router.get('/artist', getAlbumsByArtistById);
-router.get('/:id', getAlbumById);
-
-
-// protect routes
-
+router.get('/search', searchAlbums);
+router.get('/artist/:artist_id', getAlbumsByArtist);
+router.get('/:id', getAlbumDetail);
 
 module.exports = router;

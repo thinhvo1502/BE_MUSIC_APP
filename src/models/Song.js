@@ -4,6 +4,7 @@ const Album = require("./Album");
 
 const songSchema = new mongoose.Schema(
   {
+    jamendoId: { type: String, unique: true },
     spotifyId: { type: Number, sparse: true, unique: true },
     title: { type: String, required: true },
     genre: { type: [String], default: ["Unknown"] },
@@ -18,6 +19,10 @@ const songSchema = new mongoose.Schema(
     position: { type: Number },
     embeddings: { type: [Number], default: [] },
     // createdAt: { type: Date, default: Date.now },
+    release_date: {
+        type: Date,
+        default: Date.now 
+    }
   },
   { timestamps: true }
 );

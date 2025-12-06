@@ -27,7 +27,7 @@ router.get("/", getAllSongs);
 router.get("/top", getTopSongs);
 router.get("/most-played", getMostPlayed);
 router.get("/new-release", getNewRelease);
-router.get("/lyrics", getLyrics);
+router.get("/:id/lyrics", getLyrics);
 router.get("/jamendo/import", importJamendoSongs);
 router.get("/:id/recommend", getRecommendedSongs);
 router.get("/:id/recommendations", getSimilarSongs);
