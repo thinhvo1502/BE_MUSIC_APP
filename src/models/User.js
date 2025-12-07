@@ -20,6 +20,14 @@ const userSchema = new mongoose.Schema(
       { token: String, createdAt: { type: Date, default: Date.now } },
     ],
     loginCount: { type: Number, default: 0 },
+    // inside schema definition
+    googleId: { type: String, index: true, sparse: true },
+    refreshToken: [
+      {
+        token: { type: String },
+        createdAt: { type: Date, default: Date.now },
+      },
+    ],
   },
   { timestamps: true }
 );

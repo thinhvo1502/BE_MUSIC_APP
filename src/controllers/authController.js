@@ -142,24 +142,31 @@ exports.googleLogin = async (req, res) => {
     const { idToken } = req.body;
     if (!idToken)
       return res.status(400).json({ message: "idToken is required" });
-    // verify idToken with google
+
+    // verify idToken with Google
     const verifyUrl = `https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(
       idToken
     )}`;
     const { data } = await axios.get(verifyUrl);
+
     // ensure token is for our app
     if (data.aud !== process.env.GOOGLE_CLIENT_ID) {
       return res.status(400).json({ message: "Invalid id token audience" });
     }
+
     const email = data.email;
     const name = data.name || "";
     const picture = data.picture || "";
-    let user = await User.fineOne({ email });
+    const googleId = data.sub; // subject
+
+    let user = null;
+    if (email) user = await User.findOne({ email });
+    if (!user && googleId) user = await User.findOne({ googleId });
+
     if (!user) {
-      // create unique username from email
+      // create unique username from email or name
       const base =
-        email
-          .split("@")[0]
+        (email ? email.split("@")[0] : name)
           .replace(/[^\w.-]/g, "")
           .toLowerCase() || "user";
       let username = base;
@@ -168,20 +175,31 @@ exports.googleLogin = async (req, res) => {
         i++;
         username = `${base}${i}`;
       }
-      //create user with random password
+
       user = await User.create({
         username,
-        email,
+        email: email || undefined,
         password: Math.random().toString(36).slice(2),
-        avatar: picture,
+        avatar: picture || undefined,
+        googleId,
       });
+    } else {
+      // make sure googleId is attached
+      if (googleId && !user.googleId) {
+        user.googleId = googleId;
+        if (!user.avatar && picture) user.avatar = picture;
+        await user.save();
+      }
     }
+
     const accessToken = generateAccessToken(user);
     const refreshToken = generateRefreshToken(user);
+
     // store refresh token
     user.refreshToken = user.refreshToken || [];
     user.refreshToken.push({ token: refreshToken });
     await user.save();
+
     res.json({
       message: "Google login successful",
       accessToken,
@@ -195,13 +213,12 @@ exports.googleLogin = async (req, res) => {
       },
     });
   } catch (err) {
-    console.error("googleLogin error", err.message || err);
+    console.error("googleLogin error", err);
     res
       .status(400)
       .json({ message: "Google login failed", error: err.message || err });
   }
 };
-
 // [PUT] /api/auth/profile
 exports.updateProfile = async (req, res) => {
   try {
