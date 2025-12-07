@@ -121,10 +121,23 @@ exports.getMyPlaylists = async (req, res) => {
 
 exports.getPlaylist = async (req, res) => {
   try {
-    const playlist = await Playlist.findById(req.params.id).populate("songs");
-    if (!playlist)
-      return res.status(404).json({ message: "Không tìm thấy playlist" });
+    const playlist = await Playlist.findById(req.params.id)
+      .populate({
+        path: "songs",
+        populate: [
+          {
+            path: "album",
+            select: "title cover", // <--- SỬA THÀNH 'title' (trước là 'name')
+          },
+          {
+            path: "artist",
+            select: "name username",
+          },
+        ],
+      })
+      .populate("user", "username");
 
+    if (!playlist) return res.status(404).json({ message: "Not found" });
     res.json(playlist);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -160,12 +173,41 @@ exports.createPlaylist = async (req, res) => {
 };
 
 exports.updatePlaylist = async (req, res) => {
-  const updated = await Playlist.findByIdAndUpdate(req.params.id, req.body, {
-    new: true,
-  }).populate("songs");
-  if (!updated)
-    return res.status(404).json({ message: "Playlist không tồn tại" });
-  res.json(updated);
+  try {
+    // 1. Lấy dữ liệu từ Frontend gửi lên
+    // Frontend gửi: { name, description, cover }
+    const { name, description, cover } = req.body;
+    const playlistId = req.params.id;
+
+    // 2. Chuẩn bị dữ liệu để lưu vào Database
+    const updateData = {
+      name: name,
+      description: description,
+      // QUAN TRỌNG: Map từ 'cover' (frontend) sang 'imageUrl' (model của bạn)
+      imageUrl: cover,
+    };
+
+    // 3. Tìm và Update
+    const updatedPlaylist = await Playlist.findByIdAndUpdate(
+      playlistId,
+      updateData,
+      { new: true } // Trả về data mới sau khi sửa
+    )
+      .populate("user", "username") // Lấy thông tin user để hiển thị lại header
+      .populate("songs"); // (Tùy chọn) Populate songs để tránh lỗi nếu frontend cần
+
+    if (!updatedPlaylist) {
+      return res.status(404).json({ message: "Playlist không tồn tại" });
+    }
+
+    res.json({
+      message: "Cập nhật thành công",
+      data: updatedPlaylist,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: err.message });
+  }
 };
 
 exports.deletePlaylist = async (req, res) => {
@@ -314,30 +356,53 @@ exports.addSongToPlaylist = async (req, res) => {
 
 exports.removeSongFromPlaylist = async (req, res) => {
   try {
-    const { id } = req.params;
-    const { songId } = req.body;
+    const { id, songId } = req.params;
 
+    // 1. Kiểm tra Playlist có tồn tại không
     const playlist = await Playlist.findById(id);
     if (!playlist) {
       return res.status(404).json({ message: "Playlist không tồn tại" });
     }
 
-    const index = playlist.songs.findIndex(
-      (s) => s.toString() === songId.toString()
-    );
+    // 2. Ép kiểu songId sang ObjectId của MongoDB để so sánh chính xác
+    const songObjectId = new mongoose.Types.ObjectId(songId);
 
-    if (index === -1) {
-      return res
-        .status(404)
-        .json({ message: "Bài hát không tồn tại trong playlist" });
+    // 3. Thực hiện xóa (Dùng $pull)
+    // Code này sẽ cố gắng xóa bài hát dù nó đang lưu ở dạng cũ (ID) hay dạng mới (Object)
+    const updatedPlaylist = await Playlist.findByIdAndUpdate(
+      id,
+      {
+        $pull: {
+          songs: {
+            // Cách 1: Nếu songs là mảng Object [{ song: ObjectId, addedAt: ... }]
+            // Chúng ta tìm item nào có field 'song' trùng với ID
+            song: songObjectId,
+          },
+        },
+      },
+      { new: true }
+    ).populate("songs.song");
+
+    // --- PHÒNG TRƯỜNG HỢP DỮ LIỆU CŨ (Mảng ID thuần) ---
+    // Nếu cách trên không xóa được gì (độ dài mảng vẫn y nguyên), thử xóa theo kiểu ID thuần
+    if (updatedPlaylist.songs.length === playlist.songs.length) {
+      await Playlist.findByIdAndUpdate(id, {
+        $pull: { songs: songObjectId }, // Xóa trực tiếp ID khỏi mảng
+      });
+      // Fetch lại lần nữa để trả về kết quả đúng
+      const finalPlaylist = await Playlist.findById(id).populate("songs.song");
+      return res.json({
+        message: "Đã xóa (dữ liệu cũ)",
+        playlist: finalPlaylist,
+      });
     }
 
-    playlist.songs.splice(index, 1);
-    await playlist.save();
-
-    res.json({ message: "Đã xóa bài hát khỏi playlist", playlist });
+    res.json({
+      message: "Đã xóa bài hát khỏi playlist",
+      playlist: updatedPlaylist,
+    });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Lỗi khi xóa bài hát khỏi playlist" });
+    console.error("Lỗi xóa bài hát:", err);
+    res.status(500).json({ message: "Lỗi Server khi xóa bài hát" });
   }
 };
