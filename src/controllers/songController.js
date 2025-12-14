@@ -1,9 +1,75 @@
-const mongoose = require("mongoose");
-const Song = require("../models/Song");
-const Artist = require("../models/Artist");
-const Album = require("../models/Album");
-const { getJamendoTracks, getJamendoArtists } = require("../config/jamendo");
-const axios = require("axios");
+const mongoose = require('mongoose');
+const Song = require('../models/Song');
+const Artist = require('../models/Artist');
+const Album = require('../models/Album');
+const { getJamendoTracks, getJamendoArtists } = require('../config/jamendo');
+const axios = require('axios');
+const { MongoClient } = require('mongodb');
+const { createEmbedding } = require('../utils/embedding');
+
+exports.semanticSearch = async (req, res) => {
+  try {
+    const { query, limit = 20 } = req.body;
+
+    if (typeof query !== 'string') {
+      return res.status(400).json({
+        success: false,
+        error: 'query must be string',
+      });
+    }
+
+    const vector = await createEmbedding(query);
+    if (!vector || !vector.length) {
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to generate embedding',
+      });
+    }
+
+    const client = new MongoClient(process.env.MONGO_URI);
+    await client.connect();
+
+    const collection = client.db().collection('songs');
+
+    const results = await collection
+      .aggregate([
+        {
+          $vectorSearch: {
+            index: 'song_vector_index',
+            path: 'embeddings', // field trong mongodb
+            queryVector: vector,
+            limit: Number(limit),
+            numCandidates: 100,
+          },
+        },
+        {
+          $project: {
+            _id: 1,
+            title: 1,
+            genre: 1,
+            cover: 1,
+            url: 1,
+            duration: 1,
+            score: { $meta: 'vectorSearchScore' },
+          },
+        },
+      ])
+      .toArray();
+
+    await client.close();
+
+    res.json({
+      success: true,
+      query,
+      count: results.length,
+      results,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
+
 // [POST] /api/songs
 exports.createSong = async (req, res) => {
   try {
@@ -28,11 +94,11 @@ exports.createSong = async (req, res) => {
       await Album.findByIdAndUpdate(album, { $push: { songs: song._id } });
     }
     res.status(201).json({
-      message: "Song created successfully",
+      message: 'Song created successfully',
       song: song,
     });
   } catch (err) {
-    res.status(500).json({ message: "Creating song failed" });
+    res.status(500).json({ message: 'Creating song failed' });
   }
 };
 
@@ -45,7 +111,7 @@ exports.getAllSongs = async (req, res) => {
       album,
       page = 1,
       limit = 10,
-      sort = "-createdAt",
+      sort = '-createdAt',
     } = req.query;
 
     const query = {};
@@ -55,8 +121,8 @@ exports.getAllSongs = async (req, res) => {
 
     const total = await Song.countDocuments(query);
     const songs = await Song.find(query)
-      .populate("artist", "name artist_id avatar")
-      .populate("album", "title cover")
+      .populate('artist', 'name artist_id avatar')
+      .populate('album', 'title cover')
       .sort(sort)
       .skip((page - 1) * limit)
       .limit(parseInt(limit));
@@ -67,23 +133,23 @@ exports.getAllSongs = async (req, res) => {
       songs,
     });
   } catch (err) {
-    res.status(500).json({ message: "Get all songs failed" });
+    res.status(500).json({ message: 'Get all songs failed' });
   }
 };
 // [GET] /api/songs/:id
 exports.getSongById = async (req, res) => {
   try {
     const song = await Song.findById(req.params.id)
-      .populate("artist", "name")
-      .populate("album", "title");
+      .populate('artist', 'name')
+      .populate('album', 'title');
     if (!song) {
       return res.status(404).json({
-        message: "Song not found",
+        message: 'Song not found',
       });
     }
     res.json(song);
   } catch (err) {
-    res.status(500).json({ message: "Get song failed" });
+    res.status(500).json({ message: 'Get song failed' });
   }
 };
 // [PUT] /api/songs/:id
@@ -92,17 +158,17 @@ exports.updateSong = async (req, res) => {
     const song = await Song.findByIdAndUpdate(req.params.id, req.body, {
       new: true,
     });
-    if (!song) return res.status(404).json({ message: "Song not found" });
+    if (!song) return res.status(404).json({ message: 'Song not found' });
     res.json(song);
   } catch (err) {
-    res.status(500).json({ message: "Update song failed" });
+    res.status(500).json({ message: 'Update song failed' });
   }
 };
 // [DELETE] /api/songs/:id
 exports.deleteSong = async (req, res) => {
   try {
     const song = await Song.findByIdAndDelete(req.params.id);
-    if (!song) return res.status(404).json({ message: "Song not found" });
+    if (!song) return res.status(404).json({ message: 'Song not found' });
 
     // Xoá khỏi album & artist
     if (song.artist)
@@ -111,9 +177,9 @@ exports.deleteSong = async (req, res) => {
       });
     if (song.album)
       await Album.findByIdAndUpdate(song.album, { $pull: { songs: song._id } });
-    res.json({ message: "Song deleted successfully" });
+    res.json({ message: 'Song deleted successfully' });
   } catch (err) {
-    res.status(500).json({ message: "Delete song failed" });
+    res.status(500).json({ message: 'Delete song failed' });
   }
 };
 // [patch] /api/songs/:id/play
@@ -122,12 +188,12 @@ exports.incrementPlayCount = async (req, res) => {
     const song = await Song.findByIdAndUpdate(
       req.params.id,
       { $inc: { playCount: 1 } },
-      { new: true }
+      { new: true },
     );
-    if (!song) return res.status(404).json({ message: "Song not found" });
+    if (!song) return res.status(404).json({ message: 'Song not found' });
     res.json(song);
   } catch (err) {
-    res.status(500).json({ message: "Increment play count failed" });
+    res.status(500).json({ message: 'Increment play count failed' });
   }
 };
 // [GET] /api/songs/jamendo?search=love&limit=5
@@ -136,7 +202,7 @@ exports.getJamendoSongs = async (req, res) => {
     const { search, limit } = req.query;
     const tracks = await getJamendoTracks({
       limit: 1,
-      search: "",
+      search: '',
     });
     // console.log(tracks[0]);
     const formatted = tracks.map((t) => ({
@@ -146,7 +212,7 @@ exports.getJamendoSongs = async (req, res) => {
       cover: t.image,
       url: t.audio,
       duration: t.duration,
-      lyric: "", // Jamendo does not provide lyrics
+      lyric: '', // Jamendo does not provide lyrics
       playCount: t.stats?.listened_total || 0,
       likes: t.stats?.favorited_total || 0,
       artist: t.artist_name,
@@ -157,7 +223,7 @@ exports.getJamendoSongs = async (req, res) => {
     res.json({ count: formatted.length, tracks: formatted });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: "Fetching Jamendo tracks failed" });
+    res.status(500).json({ message: 'Fetching Jamendo tracks failed' });
   }
 };
 exports.importJamendoSongs = async (req, res) => {
@@ -177,8 +243,8 @@ exports.importJamendoSongs = async (req, res) => {
         artistDoc = await Artist.create({
           artist_id: artistInfo?.id,
           name: artistInfo?.name || t.artist_name,
-          avatar: artistInfo?.image || "",
-          website: artistInfo?.website || "",
+          avatar: artistInfo?.image || '',
+          website: artistInfo?.website || '',
           joindate: artistInfo?.joindate || null,
         });
       }
@@ -194,7 +260,7 @@ exports.importJamendoSongs = async (req, res) => {
           artist: artistDoc._id,
           cover: t.album_image,
           release_date: t.releasedate,
-          genre: t.musicinfo?.tags?.genres || ["Unknown"],
+          genre: t.musicinfo?.tags?.genres || ['Unknown'],
         });
         // add album to artist's album array
         await Artist.findByIdAndUpdate(artistDoc._id, {
@@ -203,13 +269,13 @@ exports.importJamendoSongs = async (req, res) => {
       }
 
       // fetch lyrics (base-effort)
-      let lyricText = "";
+      let lyricText = '';
       try {
         const url = `https://api.lyrics.ovh/v1/${encodeURIComponent(
-          t.artist_name
+          t.artist_name,
         )}/${encodeURIComponent(t.name)}`;
         const lyricRes = await axios.get(url, { timeout: 5000 });
-        lyricText = lyricRes.data?.lyrics || "";
+        lyricText = lyricRes.data?.lyrics || '';
       } catch (e) {
         // ignore lyric errors, keep lyricText = ""
       }
@@ -218,17 +284,17 @@ exports.importJamendoSongs = async (req, res) => {
       newSongs.push({
         spotifyId: t.id,
         title: t.name,
-        genre: t.musicinfo?.tags?.genres || ["Unknown"],
+        genre: t.musicinfo?.tags?.genres || ['Unknown'],
         cover: t.image,
         url: t.audio,
         duration: t.duration,
-        lyric: lyricText !== "" ? lyricText : t.lyrics, // Jamendo does not provide lyrics
+        lyric: lyricText !== '' ? lyricText : t.lyrics, // Jamendo does not provide lyrics
         playCount: t.stats?.listened_total || 0,
         likes: t.stats?.favorited_total || 0,
         artist: artistDoc._id,
         album: albumDoc._id,
         position: t.position,
-        release_date: t.releasedate || new Date()
+        release_date: t.releasedate || new Date(),
       });
     }
     // insert songs
@@ -250,7 +316,7 @@ exports.importJamendoSongs = async (req, res) => {
     res.json({ message: `Imported ${newSongs.length} songs from Jamendo` });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: "Importing Jamendo songs failed" });
+    res.status(500).json({ message: 'Importing Jamendo songs failed' });
   }
 };
 // [GET] /api/songs/lyrics/:id?artist=Coldplay&title=Yellow
@@ -259,27 +325,27 @@ exports.getLyrics = async (req, res) => {
     const { artist, title } = req.query;
     const { id } = req.params;
     if (!artist || !title) {
-      return res.status(400).json({ message: "Missing artist or title" });
+      return res.status(400).json({ message: 'Missing artist or title' });
     }
 
     const url = `https://api.lyrics.ovh/v1/${encodeURIComponent(
-      artist
+      artist,
     )}/${encodeURIComponent(title)}`;
     const { data } = await axios.get(url);
 
     const song = await Song.findByIdAndUpdate(
       id,
-      { lyric: data.lyrics || "Lyrics not found" },
-      { new: true }
+      { lyric: data.lyrics || 'Lyrics not found' },
+      { new: true },
     );
     if (!song) {
-      return res.status(404).json({ message: "Song not found" });
+      return res.status(404).json({ message: 'Song not found' });
     }
 
     res.json({
       artist,
       title,
-      lyrics: song.lyric || "Lyrics not found.",
+      lyrics: song.lyric || 'Lyrics not found.',
       song,
     });
     // res.json({
@@ -287,7 +353,7 @@ exports.getLyrics = async (req, res) => {
     // })
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: "Failed to fetch lyrics" });
+    res.status(500).json({ message: 'Failed to fetch lyrics' });
   }
 };
 // POST /api/songs/:id/lyrics (admin thêm hoặc chỉnh sửa)
@@ -297,15 +363,15 @@ exports.updateLyrics = async (req, res) => {
     const { lyrics } = req.body;
 
     const song = await Song.findById(id);
-    if (!song) return res.status(404).json({ message: "Song not found" });
+    if (!song) return res.status(404).json({ message: 'Song not found' });
 
     song.lyrics = lyrics;
     await song.save();
 
-    res.json({ message: "Lyrics updated successfully", lyrics });
+    res.json({ message: 'Lyrics updated successfully', lyrics });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: "Update lyrics failed" });
+    res.status(500).json({ message: 'Update lyrics failed' });
   }
 };
 // GET /api/songs/:id/recommend
@@ -316,15 +382,15 @@ exports.getRecommendedSongs = async (req, res) => {
 
     // 1. Kiểm tra xem ID gửi lên có phải ObjectId không?
     if (mongoose.Types.ObjectId.isValid(id)) {
-        song = await Song.findById(id);
+      song = await Song.findById(id);
     } else {
-        // 2. Nếu không phải, tìm theo spotifyId (Jamendo ID)
-        song = await Song.findOne({ spotifyId: id });
+      // 2. Nếu không phải, tìm theo spotifyId (Jamendo ID)
+      song = await Song.findOne({ spotifyId: id });
     }
 
     // 3. Nếu vẫn không thấy bài hát (do chưa import vào DB), trả về rỗng để không crash
     if (!song) {
-        return res.json({ base: "Unknown", recommendations: [] });
+      return res.json({ base: 'Unknown', recommendations: [] });
     }
 
     const relatedSongs = await Song.find({
@@ -335,14 +401,14 @@ exports.getRecommendedSongs = async (req, res) => {
         { album: song.album },
       ],
     })
-      .populate("artist", "name avatar artist_id image") 
-      .populate("album", "title cover")
+      .populate('artist', 'name avatar artist_id image')
+      .populate('album', 'title cover')
       .limit(10);
 
     res.json({ base: song.title, recommendations: relatedSongs });
   } catch (err) {
-    console.error("Recommendation Error:", err); // Log lỗi ra console để dễ debug
-    res.status(500).json({ message: "Failed to fetch recommendations" });
+    console.error('Recommendation Error:', err); // Log lỗi ra console để dễ debug
+    res.status(500).json({ message: 'Failed to fetch recommendations' });
   }
 };
 // [GET] /api/songs/top?limit=5
@@ -350,12 +416,11 @@ exports.getTopSongs = async (req, res) => {
   const limit = parseInt(req.query.limit) || 5;
   try {
     const songs = await Song.find()
-        .populate("artist", "name artist_id avatar") 
-        .populate("album", "title cover");        
-    
+      .populate('artist', 'name artist_id avatar')
+      .populate('album', 'title cover');
+
     res.json(songs);
-  } catch (err) {
-  }
+  } catch (err) {}
 };
 
 // [GET] /api/songs/most-played
@@ -363,14 +428,13 @@ exports.getMostPlayed = async (req, res) => {
   const limit = parseInt(req.query.limit) || 10;
   try {
     const songs = await Song.find()
-        .sort({ playCount: -1 })
-        .limit(limit)
-        .populate("artist", "name artist_id avatar")
-        .populate("album", "title cover");
+      .sort({ playCount: -1 })
+      .limit(limit)
+      .populate('artist', 'name artist_id avatar')
+      .populate('album', 'title cover');
 
-    res.json({ message: "Most played songs", songs });
-  } catch (err) {
-  }
+    res.json({ message: 'Most played songs', songs });
+  } catch (err) {}
 };
 
 // [GET] /api/songs/new-release
@@ -378,18 +442,18 @@ exports.getNewRelease = async (req, res) => {
   const limit = parseInt(req.query.limit) || 10;
   try {
     const songs = await Song.find()
-        .sort({ release_date: -1, createdAt: -1 })
-        .limit(limit)
-        .populate("artist", "name artist_id avatar")
-        .populate("album", "title cover");
+      .sort({ release_date: -1, createdAt: -1 })
+      .limit(limit)
+      .populate('artist', 'name artist_id avatar')
+      .populate('album', 'title cover');
 
-    res.json({ 
-        success: true, 
-        message: "Newly released songs", 
-        songs 
+    res.json({
+      success: true,
+      message: 'Newly released songs',
+      songs,
     });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: "Get new release failed" });
+    res.status(500).json({ message: 'Get new release failed' });
   }
 };
